@@ -435,7 +435,7 @@ cell_crop_area_wmean     = function(.base.path, .scenario, .lu_path, .raster,
                     's_cr_residC',  's_cr_residN', 'm_cc_rootC', 'm_cc_shootC', 'm_cc_shootN','s_cc_rootC', 's_cc_shootC', 
                     's_cc_shootN', 'm_SOC', 'm_N2O', 'm_iN2O', 'm_dN2O','m_GHG', 'm_annet','m_sfdcmp', 'm_sldcmp',  'm_cr_irr',
                     'm_sC.N','m_nfix','s_cr_irr', 's_annet','s_SOC', 's_N2O', 's_iN2O', 's_dN2O', 
-                    's_GHG','s_gr_nit')
+                    's_GHG','s_gr_nit', 's_N_leach')
   print('Compute weighted mean by crop area in gridcell. Note: Calculation takes several minutes.')
   .dt_crop_area = .dt_crop_area[, lapply(.SD, weighted.mean, weights), .SDcols = cols_for_mean, 
                                 by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION,total_crop_area_ha, cell_area)]
@@ -451,7 +451,156 @@ cell_crop_area_wmean     = function(.base.path, .scenario, .lu_path, .raster,
                '.'))
   return(.dt_crop_area)
 }
-cell_crop_area_gcm_wmean     = function(.base.path, .scenario, .lu_path, .raster,
+cell_crop_area_wmean_abs = function(.base.path, .scenario, .lu_path, .raster,
+                                    .bad_run_match) {
+  keep.cols = c("gridid","x","y","WB_NAME","WB_REGION",    
+                "ssp","crop","irr","scenario","y_block" ,     
+                "gcm","m_cc_rootC","m_cc_shootC","m_cc_shootN","s_cc_rootC",   
+                "s_cc_shootC","s_cc_shootN","m_cr_rootC","m_cr_shootC","m_cr_shootN",  
+                "m_cr_grain","m_cr_grainN","m_cr_NPP","m_cr_residC","m_cr_residN",  
+                "s_cr_rootC","s_cr_shootC","s_cr_shootN","s_cr_grain","s_cr_grainN",  
+                "s_cr_NPP","s_cr_residC","s_cr_residN","m_SOC","m_N2O",        
+                "m_dN2O","m_dN2O_nit","m_dN2O_dnit","m_iN2O","m_iN2O_v",     
+                "m_iN2O_l","m_GHG", "m_gr_nit", "s_SOC",        
+                "s_N2O", "s_dN2O", "s_dN2O_nit",    "s_dN2O_dnit",   "s_iN2O",       
+                "s_iN2O_v", "s_iN2O_l", "s_GHG", "s_gr_nit",     
+                "m_ANNPPT", "m_annet","m_PET_r", "m_sfdcmp","m_sldcmp",     
+                "m_sC.N", "m_fert.N", "m_omad.C", "m_omad.N", "m_nfix",       
+                "m_cr_irr", "s_cr_irr", "s_annet", "s_N_leach")
+  if(!.scenario %like% '-res') {
+    # gcm
+    #first run
+    print('This is not a -res scenario. Loading run 1 dt.')
+    load(paste0(.base.path, '/data/', .scenario,'-ensemble-absolute-responses.Rdata'))
+    rds_dt_r_ens1 = rds_dt_r_s_ens
+    rm(rds_dt_r_s_ens)
+    rds_dt_r_ens1 = rds_dt_r_ens1[, ..keep.cols]
+    gc()
+    
+    # second run
+    print('This is not a -res scenario. Loading run 2 dt.')
+    load(paste0(.base.path, '/data/', .scenario,'-ensemble-absolute-responses-2.Rdata'))
+    rds_dt_r_s_ens = rds_dt_r_s_ens[, ..keep.cols]
+    gc()
+    
+    # COMBINE
+    rds_dt_r_s_ens = rbind(rds_dt_r_ens1, rds_dt_r_s_ens)
+    rm(rds_dt_r_ens1)
+    gc()
+    setorder(rds_dt_r_s_ens, gridid)
+  } else {
+    print('This is a -res scenario. Loading dt.')
+    load(paste0(.base.path, '/data/', .scenario,'-ensemble-absolute-responses.Rdata'))
+    rds_dt_r_s_ens = rds_dt_r_s_ens[, ..keep.cols]
+    setorder(rds_dt_r_s_ens, gridid)
+    gc()
+  }
+  
+  # CREATE dt
+  crop_area_r           = rast(paste(.lu_path, .raster, sep = '/'))
+  crop_area_r$cell_area = cellSize(crop_area_r, mask=FALSE, lyrs=FALSE, unit="ha")
+  crop_area_dt          = as.data.table(terra::as.data.frame(crop_area_r, xy = TRUE, cells = TRUE))
+  
+  # FILTER raster by relevant gridid
+  gridid_all       = unique(rds_dt_r_s_ens[,gridid])
+  print(paste0('Number of gridid in input table is ', 
+               length(gridid_all),
+               '.'))
+  crop_area_dt_f   = crop_area_dt[cell %in% gridid_all,]
+  
+  # ADD relevant crop area by crop / irrigation / gridid
+  wht_rn = rds_dt_r_s_ens[crop %in% 'wht' & irr == 0,]
+  wht_rn = wht_rn[crop_area_dt_f[,c('cell','wheat_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  wht_rn = wht_rn[!is.na(x),] 
+  names(wht_rn)[names(wht_rn) == 'wheat_rainfed_2015'] = 'crop_area_ha'
+  
+  maiz_rn = rds_dt_r_s_ens[crop %in% 'maiz' & irr == 0,]
+  maiz_rn = maiz_rn[crop_area_dt_f[,c('cell','maize_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  maiz_rn = maiz_rn[!is.na(x),] 
+  names(maiz_rn)[names(maiz_rn) == 'maize_rainfed_2015'] = 'crop_area_ha'
+  
+  soyb_rn = rds_dt_r_s_ens[crop %in% 'soyb' & irr == 0,]
+  soyb_rn = soyb_rn[crop_area_dt_f[,c('cell','soybean_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  soyb_rn = soyb_rn[!is.na(x),]
+  names(soyb_rn)[names(soyb_rn) == 'soybean_rainfed_2015'] = 'crop_area_ha'
+  
+  wht_ir = rds_dt_r_s_ens[crop %in% 'wht' & irr == 1,]
+  wht_ir = wht_ir[crop_area_dt_f[,c('cell','wheat_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  wht_ir = wht_ir[!is.na(x),]
+  names(wht_ir)[names(wht_ir) == 'wheat_irrigated_2015'] = 'crop_area_ha'
+  
+  maiz_ir = rds_dt_r_s_ens[crop %in% 'maiz' & irr == 1,]
+  maiz_ir = maiz_ir[crop_area_dt_f[,c('cell','maize_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  maiz_ir = maiz_ir[!is.na(x),]
+  names(maiz_ir)[names(maiz_ir) == 'maize_irrigated_2015'] = 'crop_area_ha'
+  
+  soyb_ir = rds_dt_r_s_ens[crop %in% 'soyb' & irr == 1,]
+  soyb_ir = soyb_ir[crop_area_dt_f[,c('cell','soybean_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  soyb_ir = soyb_ir[!is.na(x),]
+  names(soyb_ir)[names(soyb_ir) == 'soybean_irrigated_2015'] = 'crop_area_ha'
+  
+  .dt_crop_area = rbind(maiz_rn, soyb_rn, wht_rn, maiz_ir, soyb_ir, wht_ir)
+  rm(rds_dt_r_s_ens)
+  gc()
+  
+  # ROUND area
+  .dt_crop_area[, crop_area_ha       := round(crop_area_ha, digits = 2)]
+  .dt_crop_area[, cell_total_area_ha := round(cell_area, digits = 2)]
+  setorder(.dt_crop_area, gridid)
+  
+  # FILTER gridid >= 1
+  print(paste0('Number of gridid by crop and irr with equal or more than 1 ha cropland is ', 
+               length(unique(.dt_crop_area[crop_area_ha >= 1, gridid])),
+               '.'))
+  .dt_crop_area = .dt_crop_area[crop_area_ha >= 1,]
+  
+  # FILTER BAD RUN YEARS
+  .dt_crop_area = .dt_crop_area[!crop %in% 'maiz' | !irr == 0 |
+                                  !gridid %in% .bad_run_match$m0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'maiz' | !irr == 1 |
+                                  !gridid %in% .bad_run_match$m1]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'soyb' | !irr == 0 |
+                                  !gridid %in% .bad_run_match$s0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'soyb' | !irr == 1 |
+                                  !gridid %in% .bad_run_match$s1]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'wht'  | !irr == 0 |
+                                  !gridid %in% .bad_run_match$w0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'wht'  | !irr == 1 |
+                                  !gridid %in% .bad_run_match$w1]
+  print(paste0('Number of 1 ha filtered gridid by crop and irr and good run years is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  # REMOVE KNOWN OUTLIERS
+  .dt_crop_area = .dt_crop_area[!gridid %in% c(103186,164414),]
+  print(paste0('Number of 1 ha filtered gridid by crop and irr, good run years, and known outliers is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  
+  # WEIGHTED mean by crop area in gridid
+  .dt_crop_area[, total_crop_area_ha := sum(crop_area_ha), by = .(y_block, ssp, gcm, gridid, scenario)]
+  .dt_crop_area[, weights            := (crop_area_ha/total_crop_area_ha)*100L]
+  cols_for_mean = c('m_cr_rootC', 'm_cr_shootC', 'm_cr_shootN', 'm_cr_grain', 'm_cr_grainN','m_cr_NPP', 'm_cr_residC', 
+                    'm_cr_residN', 's_cr_rootC', 's_cr_shootC', 's_cr_shootN', 's_cr_grain', 's_cr_grainN','s_cr_NPP',
+                    's_cr_residC',  's_cr_residN', 'm_cc_rootC', 'm_cc_shootC', 'm_cc_shootN','s_cc_rootC', 's_cc_shootC', 
+                    's_cc_shootN', 'm_SOC', 'm_N2O', 'm_iN2O', 'm_dN2O','m_GHG', 'm_annet','m_sfdcmp', 'm_sldcmp',  'm_cr_irr',
+                    'm_sC.N','m_nfix','s_cr_irr', 's_annet','s_SOC', 's_N2O', 's_iN2O', 's_dN2O', 
+                    's_GHG','s_gr_nit', 's_N_leach')
+  print('Compute weighted mean by crop area in gridcell. Note: Calculation takes several minutes.')
+  .dt_crop_area = .dt_crop_area[, lapply(.SD, weighted.mean, weights), .SDcols = cols_for_mean, 
+                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION,total_crop_area_ha, cell_area)]
+  .dt_crop_area = .dt_crop_area[, lapply(.SD, round, digits = 2), .SDcols = cols_for_mean,
+                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
+  setorder(.dt_crop_area, gridid)
+  
+  .dt_crop_area[, total_crop_area_ha := NULL]
+  .dt_crop_area[, cell_area := NULL]
+  
+  print(paste0('Number of crop area weighted gridid is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  return(.dt_crop_area)
+}
+cell_crop_area_gcm_wmean = function(.base.path, .scenario, .lu_path, .raster,
                                     .bad_run_match) {
   if(!.scenario %like% '-res') {
     # gcm
@@ -615,8 +764,8 @@ cell_crop_area_gcm_wmean     = function(.base.path, .scenario, .lu_path, .raster
                '.'))
   return(.dt_crop_area)
 }
-cell_crop_area_gcm_var_wmean = function(.base.path, .scenario, .lu_path, .raster,
-                                    .bad_run_match) {
+cell_crop_area_gcm_price = function(.base.path, .scenario, .lu_path, .raster,
+                                    .bad_run_match, .price_dt) {
   if(!.scenario %like% '-res') {
     # gcm
     #first run
@@ -646,8 +795,7 @@ cell_crop_area_gcm_var_wmean = function(.base.path, .scenario, .lu_path, .raster
     
     # REDUCE COLUMNS
     cols = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 
-             'WB_REGION', 'crop', 'irr','s_cr_grain', 's_cr_NPP', 's_cr_residC','s_cc_rootC', 's_cc_shootC', 
-             'm_sfdcmp', 'm_sldcmp', 'm_sC.N','m_nfix','s_annet', 's_gr_nit')
+             'WB_REGION', 'crop', 'irr','s_cr_grain')
     rds_dt_r_s = rds_dt_r_s[, ..cols]
     gc()
   } else {
@@ -665,8 +813,7 @@ cell_crop_area_gcm_var_wmean = function(.base.path, .scenario, .lu_path, .raster
     
     # REDUCE COLUMNS
     cols = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 
-             'WB_REGION', 'crop', 'irr','s_cr_grain', 's_cr_NPP', 's_cr_residC','s_cc_rootC', 's_cc_shootC', 
-             'm_sfdcmp', 'm_sldcmp', 'm_sC.N','m_nfix','s_annet', 's_gr_nit')
+             'WB_REGION', 'crop', 'irr','s_cr_grain')
     rds_dt_r_s = rds_dt_r_s[, ..cols]
     gc()
   }
@@ -756,18 +903,32 @@ cell_crop_area_gcm_var_wmean = function(.base.path, .scenario, .lu_path, .raster
   print(paste0('Number of 1 ha filtered gridid by crop and irr, good run years, and known outliers is ', 
                length(unique(.dt_crop_area[, gridid])),
                '.'))
+  # ADD GRAIN PRICES, 2006-2016
+  oecd_fao_dt   = fread(paste0(.base.path, '/data/', .price_dt))
+  oecd_fao_dt   = oecd_fao_dt[, .(Commodity, TIME_PERIOD, OBS_VALUE)]
+  oecd_fao_dt   = oecd_fao_dt[!TIME_PERIOD < 2006,]
+  oecd_fao_dt   = oecd_fao_dt[, lapply(.SD, mean), .SDcols = 'OBS_VALUE', by = .(Commodity)]
+  maize_pr      = round(oecd_fao_dt[Commodity %like% 'Maize', OBS_VALUE], digits = 0)
+  wheat_pr      = round(oecd_fao_dt[Commodity %like% 'Wheat', OBS_VALUE], digits = 0)
+  soy_pr        = round(oecd_fao_dt[Commodity %like% 'Soy',   OBS_VALUE], digits = 0)
   
+  .dt_crop_area[crop %in% 'maiz', annual_price := maize_pr]
+  .dt_crop_area[crop %in% 'wht',  annual_price := wheat_pr]
+  .dt_crop_area[crop %in% 'soyb',  annual_price := soy_pr]
+  
+  # COMPUTE FOR ONE YEAR
+  .dt_crop_area = .dt_crop_area[y_block == 2020,]
+  .dt_crop_area[, y_block := NULL]
   # WEIGHTED mean by crop area in gridid
-  .dt_crop_area[, total_crop_area_ha := sum(crop_area_ha), by = .(y_block, ssp, gcm, gridid, scenario)]
+  .dt_crop_area[, total_crop_area_ha := sum(crop_area_ha), by = .(ssp, gcm, gridid, scenario)]
   .dt_crop_area[, weights            := (crop_area_ha/total_crop_area_ha)*100L]
-  cols_for_mean = c('s_cr_grain', 's_cr_NPP', 's_cr_residC','s_cc_rootC', 's_cc_shootC', 
-                    'm_sfdcmp', 'm_sldcmp', 'm_sC.N','m_nfix','s_annet', 's_gr_nit')
+  cols_for_mean = c('annual_price')
   print('Compute weighted mean by crop area in gridcell. Note: Calculation takes several minutes.')
   .dt_crop_area = .dt_crop_area[, lapply(.SD, weighted.mean, weights), .SDcols = cols_for_mean, 
-                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
+                                by = .(gridid, x, y, scenario, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
   gc()
-  .dt_crop_area = .dt_crop_area[, lapply(.SD, round, digits = 2), .SDcols = cols_for_mean,
-                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
+  .dt_crop_area = .dt_crop_area[, lapply(.SD, round, digits = 0), .SDcols = cols_for_mean,
+                                by = .(gridid, x, y, scenario, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
   gc()
   setorder(.dt_crop_area, gridid)
   
@@ -1024,6 +1185,86 @@ impute_missing_gcm       = function(.dt, .crop_area, gcms, .ssp) {
       imp_gcm_dt = rbind(imp_gcm_dt, imp_w_dt)
       gc()
     }
+  }
+  return(imp_gcm_dt)
+}
+impute_missing_pr_gcm    = function(.dt, .crop_area, gcms, .ssp) {
+  print('Note: this function takes several minutes to run.')
+  # empty dt
+  imp_gcm_dt = data.table(cell = numeric(), x = numeric(), 
+                          y = numeric(), ssp = character(),
+                          gcm = character(), variable = factor(), 
+                          value = numeric(), total_crop_area_ha = numeric())
+  
+  for (.gcm in gcms) {
+    print(paste0('Creating imputed table for ', .gcm, '.'))
+
+      # FILTER DT
+      dt_r = .dt[ssp %in% .ssp & gcm %in% .gcm,]
+      # TO DATAFRAME
+      dt_r = as.data.frame(dt_r, xy = TRUE)
+      setnames(dt_r, 'gridid', 'cell')
+      setDT(dt_r)
+      
+      # CREATE raster
+      dt_r   = as.data.frame(dt_r, xy = TRUE)
+      r      = rast(nrow = 360, ncol = 720, nlyr = 1, xmin = -180, xmax = 180, ymin = -90, ymax = 90)
+      crs(r) = "epsg:4326"
+      # original projection
+      r_ghg = rast(res = 0.5, nlyr = 1, extent = ext(r), crs = crs(r)) 
+      r_ghg[[1]][dt_r$cell]  = dt_r$annual_price
+      # UPDATE NAMES
+      lyrs     = c('annual_price')
+      names(r_ghg) = lyrs
+      gc()
+      
+      # ITERATIVE MOVING WINDOW
+      w = c(3,5,7,9,11,13,15,17,19,21,23,25,27,29,31)
+      imp_w_dt  = c()
+      imp_cells = c()
+      for (i in w) {
+        # IMPUTE with focal | need large window to capture ranges of table 
+        r_all_imp = focal(r_ghg, w=i, fun = "mean", na.policy = "only", na.rm = TRUE)
+        
+        # TRANSFORM back to dt
+        imp_dt    = setDT(terra::as.data.frame(r_all_imp, xy = TRUE, 
+                                               cells = TRUE))
+        imp_dt    = imp_dt[!cell %in% imp_cells] # remove old cells
+        print(paste0('The difference in cells for window ', i, ' is ', length(unique(imp_dt[, cell]))))
+        imp_w_dt  = rbind(imp_w_dt, imp_dt)      # combine tables
+        setorder(imp_w_dt, cell)
+        imp_cells = unique(imp_w_dt[, cell])     # update cells
+        print(paste0('New length of cells in iterative focal step is ',length(imp_cells), ' for window ', i, '.'))
+        gc()
+      }
+      
+      # WIDE TO LONG format
+      imp_w_dt = melt(imp_w_dt,
+                      id.vars = c("cell", "x", "y"),
+                      measure.vars = patterns('_'))
+      # ADJUST columns
+      imp_w_dt[, ssp := .ssp]
+      imp_w_dt[, gcm := .gcm]
+      imp_w_dt[variable %like% 'annual_price', variable:= 'annual_price']
+      imp_w_dt[, value := round(value, digits = 0)] # round
+      setcolorder(imp_w_dt, c('cell','x', 'y','ssp', 'gcm','variable', 'value'))
+      
+      # SUM crop area into one layer
+      crop_sum = sum(.crop_area, na.rm = TRUE) 
+      names(crop_sum) = 'total_crop_area_ha'
+      # TRANSFORM to dt
+      crop_dt  = setDT(terra::as.data.frame(crop_sum, xy = TRUE, 
+                                            cells = TRUE, na.rm =TRUE))
+      # JOIN
+      imp_w_dt = imp_w_dt[crop_dt, on = .(cell = cell,
+                                          x    = x,
+                                          y    = y)]
+      imp_w_dt = imp_w_dt[!is.na(ssp)]
+      imp_w_dt = imp_w_dt[total_crop_area_ha > 0,]
+      
+      # COMBINE
+      imp_gcm_dt = rbind(imp_gcm_dt, imp_w_dt)
+      gc()
   }
   return(imp_gcm_dt)
 }
@@ -1313,183 +1554,100 @@ regional_decadal_mCI  = function(.dt) {
   # dt_mCI[, Tm_cc_shootC_ciL       := (m_cc_shootC_m - (0.95*(m_cc_shootC_sd))/sqrt(m_cc_shootC_n))]
   # dt_mCI[, Tm_cc_shootC_ciH       := (m_cc_shootC_m + (0.95*(m_cc_shootC_sd))/sqrt(m_cc_shootC_n))]
 }
+# supervised clustering
+pred_fun                 = function(object, newdata) {
+  predict(object, data = newdata)$predictions
+}
+wss                      = function(k, df) {
+  kmeans(df, k, nstart = 10 )$tot.withinss
+}
+soc_supervised_clustering  = function(ranger_dt) {
+  drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION')
+  soc_rf_dt   = ranger_dt[, -..drop_ranger]
+  # correlated variables
+  # correlationMatrix = cor(soc_rf_dt[,c(1:6,8:29)])
+  correlationMatrix = cor(soc_rf_dt[,c(1:5,7:25)])
+  highlyCorrelated  = findCorrelation(correlationMatrix, cutoff=0.75, names = TRUE)
+  print(highlyCorrelated)
 
-# check still used
-regional_decadal_mSE  = function(.dt) {
-  dt_mSE = .dt[, .(
-    m_SOC_m   = mean(m_SOC),
-    m_SOC_sd  = sd(m_SOC),
-    m_SOC_n   = length(m_SOC),
-    m_N2O_m   = mean(m_N2O),
-    m_N2O_sd  = sd(m_N2O),
-    m_N2O_n   = length(m_N2O),
-    m_dN2O_m  = mean(m_dN2O),
-    m_dN2O_sd = sd(m_dN2O),
-    m_dN2O_n  = length(m_dN2O),
-    m_iN2O_m    = mean(m_iN2O),
-    m_iN2O_sd   = sd(m_iN2O),
-    m_iN2O_n    = length(m_iN2O),
-    m_GHG_m     = mean(m_GHG),
-    m_GHG_sd    = sd(m_GHG),
-    m_GHG_n     = length(m_GHG),
-    m_grain_m   = mean(m_cr_grain), # biomass
-    m_grain_sd  = sd(m_cr_grain),
-    m_grain_n   = length(m_cr_grain),
-    m_residC_m  = mean(m_cr_residC),
-    m_residC_sd = sd(m_cr_residC),
-    m_residC_n  = length(m_cr_residC),
-    m_cc_shootC_m   = mean(m_cc_shootC),
-    m_cc_shootC_sd  = sd(m_cc_shootC),
-    m_cc_shootC_n   = length(m_cc_shootC),
-    s_SOC_m   = mean(s_SOC),
-    s_SOC_sd  = sd(s_SOC),
-    s_SOC_n   = length(s_SOC),
-    s_N2O_m   = mean(s_N2O),
-    s_N2O_sd  = sd(s_N2O),
-    s_N2O_n   = length(s_N2O),
-    s_dN2O_m  = mean(s_dN2O),
-    s_dN2O_sd = sd(s_dN2O),
-    s_dN2O_n  = length(s_dN2O),
-    s_iN2O_m    = mean(s_iN2O),
-    s_iN2O_sd   = sd(s_iN2O),
-    s_iN2O_n    = length(s_iN2O),
-    s_GHG_m     = mean(s_GHG),
-    s_GHG_sd    = sd(s_GHG),
-    s_GHG_n     = length(s_GHG),
-    s_grain_m   = mean(s_cr_grain), # biomass
-    s_grain_sd  = sd(s_cr_grain),
-    s_grain_n   = length(s_cr_grain),
-    s_residC_m  = mean(s_cr_residC),
-    s_residC_sd = sd(s_cr_residC),
-    s_residC_n  = length(s_cr_residC),
-    s_cc_shootC_m   = mean(s_cc_shootC),
-    s_cc_shootC_sd  = sd(s_cc_shootC),
-    s_cc_shootC_n   = length(s_cc_shootC)),
-    by = .(ssp, y_block, IPCC_NAME)]
-  dt_mSE[, Ts_SOC_se       := s_SOC_sd/sqrt(s_SOC_n)]
-  dt_mSE[, Ts_N2O_se       := s_N2O_sd/sqrt(s_N2O_n)]
-  dt_mSE[, Ts_dN2O_se      := s_dN2O_sd/sqrt(s_dN2O_n)]
-  dt_mSE[, Ts_iN2O_se      := s_iN2O_sd/sqrt(s_iN2O_n)]
-  dt_mSE[, Ts_GHG_se       := s_GHG_sd/sqrt(s_GHG_n)]
-  dt_mSE[, Ts_grain_se     := s_grain_sd/sqrt(s_grain_n)]
-  dt_mSE[, Ts_residC_se    := s_residC_sd/sqrt(s_residC_n)]
-  dt_mSE[, Ts_cc_shootC_se := s_cc_shootC_sd/sqrt(s_cc_shootC_n)]
-  dt_mSE[, Tm_SOC_se       := m_SOC_sd/sqrt(m_SOC_n)]
-  dt_mSE[, Tm_N2O_se       := m_N2O_sd/sqrt(m_N2O_n)]
-  dt_mSE[, Tm_dN2O_se      := m_dN2O_sd/sqrt(m_dN2O_n)]
-  dt_mSE[, Tm_iN2O_se      := m_iN2O_sd/sqrt(m_iN2O_n)]
-  dt_mSE[, Tm_GHG_se       := m_GHG_sd/sqrt(m_GHG_n)]
-  dt_mSE[, Tm_grain_se     := m_grain_sd/sqrt(m_grain_n)]
-  dt_mSE[, Tm_residC_se    := m_residC_sd/sqrt(m_residC_n)]
-  dt_mSE[, Tm_cc_shootC_se := m_cc_shootC_sd/sqrt(m_cc_shootC_n)]
-}
-country_decadal_mean  = function(.dt) {
-  .dt_s = copy(.dt)
+  quant     = quantile(soc_rf_dt[,s_SOC], seq(0,1,.01))
+  print(quant)
+  soc_rf_dt = soc_rf_dt[s_SOC > quant[[2]],]
+  soc_rf_dt = soc_rf_dt[s_SOC < quant[[100]],]
+  ranger_dt = ranger_dt[s_SOC > quant[[2]],]
+  ranger_dt = ranger_dt[s_SOC < quant[[100]],]
   
-  # 2. Global emissions
-  r_relative_flux_dt = .dt_s[, .(
-    m_SOC       = round((mean(m_SOC)), digits = 2),
-    m_N2O       = round((mean(m_N2O)), digits = 2),
-    m_dN2O      = round((mean(m_dN2O)), digits = 2),
-    m_iN2O      = round((mean(m_iN2O)), digits = 2),
-    m_GHG       = round((mean(m_GHG)), digits = 2),
-    m_cr_grain  = round((mean(m_cr_grain)), digits = 2), # biomass
-    m_cr_residC = round((mean(m_cr_residC)), digits = 2),
-    m_cc_shootC = round((mean(m_cc_shootC)), digits = 2),
-    s_SOC       = round((mean(s_SOC)), digits = 2),
-    s_N2O       = round((mean(s_N2O)), digits = 2),
-    s_dN2O      = round((mean(s_dN2O)), digits = 2),
-    s_iN2O      = round((mean(s_iN2O)), digits = 2),
-    s_GHG       = round((mean(s_GHG)), digits = 2),
-    s_cr_grain  = round((mean(s_cr_grain)), digits = 2), # biomass
-    s_cr_residC = round((mean(s_cr_residC)), digits = 2),
-    s_cc_shootC = round((mean(s_cc_shootC)), digits = 2)),
-    by = .(gcm, ssp, y_block, WB_NAME, IPCC_NAME, crop_sum_2015)]
-  return(r_relative_flux_dt)
+  #soc RF and SHAP
+  print('Running ranger.')
+  soc_ranger       = ranger(dependent.variable.name = 's_SOC', data = soc_rf_dt,
+                            importance = 'permutation', keep.inbag = TRUE, seed = 1234)
+  soc_ranger
+  
+  soc_features = soc_rf_dt[, -c('s_SOC')]
+  # SHAP COMPUTATION - N.B. TAKES A LONG TIME
+  print('Computing SHAP')
+  soc_SHAP       = explain(soc_ranger, X = soc_features, pred_wrapper = pred_fun, nsim = 10, adjust = TRUE,
+                           shap_only = FALSE)
+  shv.soc_gl     = shapviz(soc_SHAP)
+  # initial visualization
+  soc_SHAP_gl_gg = sv_importance(shv.soc_gl)
+  soc_SHAP_be_gg = sv_importance(shv.soc_gl, kind = "beeswarm", show_numbers = FALSE, bee_width = 0.2)
+  # save dt
+  soc_SHAP_features = setDT(soc_SHAP$feature_values)
+  soc_SHAP_features[, gridid := ranger_dt[,gridid]]
+  soc_SHAP_features[, x := ranger_dt[,x]]
+  soc_SHAP_features[, y := ranger_dt[,y]]
+  soc_SHAP_features[, ssp := ranger_dt[,ssp]]
+  soc_SHAP_values   = setDT(as.data.frame(soc_SHAP$shapley_values))
+  soc_SHAP_values[, gridid := ranger_dt[,gridid]]
+  soc_SHAP_values[, x := ranger_dt[,x]]
+  soc_SHAP_values[, y := ranger_dt[,y]]
+  soc_SHAP_values[, ssp := ranger_dt[,ssp]]
+  
+  # umap (2D reduction) of SHAP
+  print('Computing UMAP')
+  shap_soc_2d       = umap(soc_SHAP$shapley_values)
+  # kmeans on SHAP 2D reduction
+  # Compute and plot wss for k = 1 to k = 15
+  k.values = 1:15
+  print('Finding optimal k clusters.')
+  wss_values = purrr::map_dbl(k.values, wss, shap_soc_2d$layout)
+  plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE,
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+  soc_clusters = recordPlot()
+  
+  soc_SHAP_list = list(ranger         = soc_ranger, reduced_ranger_dt = soc_rf_dt,
+                       full_ranger_dt = ranger_dt,
+                       gl_gg          = soc_SHAP_gl_gg, 
+                       bee_gg = soc_SHAP_be_gg,
+                       viz            = shv.soc_gl,
+                       features       = soc_SHAP_features,
+                       values         = soc_SHAP_values, 
+                       clusters = soc_clusters,
+                       SHAP           = soc_SHAP, 
+                       UMAP = shap_soc_2d,
+                       cor            = correlationMatrix,
+                       cor_col        = highlyCorrelated)
+  return(soc_SHAP_list)
 }
-country_decadal_mCI   = function(.dt) {
-  dt_mCI = .dt[, .(
-    m_SOC_m   = mean(m_SOC),
-    m_SOC_sd  = sd(m_SOC),
-    m_SOC_n   = length(m_SOC),
-    m_N2O_m   = mean(m_N2O),
-    m_N2O_sd  = sd(m_N2O),
-    m_N2O_n   = length(m_N2O),
-    m_dN2O_m  = mean(m_dN2O),
-    m_dN2O_sd = sd(m_dN2O),
-    m_dN2O_n  = length(m_dN2O),
-    m_iN2O_m    = mean(m_iN2O),
-    m_iN2O_sd   = sd(m_iN2O),
-    m_iN2O_n    = length(m_iN2O),
-    m_GHG_m     = mean(m_GHG),
-    m_GHG_sd    = sd(m_GHG),
-    m_GHG_n     = length(m_GHG),
-    m_grain_m   = mean(m_cr_grain), # biomass
-    m_grain_sd  = sd(m_cr_grain),
-    m_grain_n   = length(m_cr_grain),
-    m_residC_m  = mean(m_cr_residC),
-    m_residC_sd = sd(m_cr_residC),
-    m_residC_n  = length(m_cr_residC),
-    m_cc_shootC_m   = mean(m_cc_shootC),
-    m_cc_shootC_sd  = sd(m_cc_shootC),
-    m_cc_shootC_n   = length(m_cc_shootC),
-    s_SOC_m   = mean(s_SOC),
-    s_SOC_sd  = sd(s_SOC),
-    s_SOC_n   = length(s_SOC),
-    s_N2O_m   = mean(s_N2O),
-    s_N2O_sd  = sd(s_N2O),
-    s_N2O_n   = length(s_N2O),
-    s_dN2O_m  = mean(s_dN2O),
-    s_dN2O_sd = sd(s_dN2O),
-    s_dN2O_n  = length(s_dN2O),
-    s_iN2O_m    = mean(s_iN2O),
-    s_iN2O_sd   = sd(s_iN2O),
-    s_iN2O_n    = length(s_iN2O),
-    s_GHG_m     = mean(s_GHG),
-    s_GHG_sd    = sd(s_GHG),
-    s_GHG_n     = length(s_GHG),
-    s_grain_m   = mean(s_cr_grain), # biomass
-    s_grain_sd  = sd(s_cr_grain),
-    s_grain_n   = length(s_cr_grain),
-    s_residC_m  = mean(s_cr_residC),
-    s_residC_sd = sd(s_cr_residC),
-    s_residC_n  = length(s_cr_residC),
-    s_cc_shootC_m   = mean(s_cc_shootC),
-    s_cc_shootC_sd  = sd(s_cc_shootC),
-    s_cc_shootC_n   = length(s_cc_shootC)),
-    by = .(ssp, y_block, WB_NAME)]
-  dt_mCI[, Ts_SOC_ciL       := (s_SOC_m - (0.95*(s_SOC_sd))/sqrt(s_SOC_n))]
-  dt_mCI[, Ts_SOC_ciH       := (s_SOC_m + (0.95*(s_SOC_sd))/sqrt(s_SOC_n))]
-  dt_mCI[, Ts_N2O_ciL       := (s_N2O_m - (0.95*(s_N2O_sd))/sqrt(s_N2O_n))]
-  dt_mCI[, Ts_N2O_ciH       := (s_N2O_m + (0.95*(s_N2O_sd))/sqrt(s_N2O_n))]
-  dt_mCI[, Ts_dN2O_ciL      := (s_dN2O_m - (0.95*(s_dN2O_sd))/sqrt(s_dN2O_n))]
-  dt_mCI[, Ts_dN2O_ciH      := (s_dN2O_m + (0.95*(s_dN2O_sd))/sqrt(s_dN2O_n))]
-  dt_mCI[, Ts_iN2O_ciL      := (s_iN2O_m - (0.95*(s_iN2O_sd))/sqrt(s_iN2O_n))]
-  dt_mCI[, Ts_iN2O_ciH      := (s_iN2O_m + (0.95*(s_iN2O_sd))/sqrt(s_iN2O_n))]
-  dt_mCI[, Ts_GHG_ciL       := (s_GHG_m - (0.95*(s_GHG_sd))/sqrt(s_GHG_n))]
-  dt_mCI[, Ts_GHG_ciH       := (s_GHG_m + (0.95*(s_GHG_sd))/sqrt(s_GHG_n))]
-  dt_mCI[, Ts_grain_ciL       := (s_grain_m - (0.95*(s_grain_sd))/sqrt(s_grain_n))]
-  dt_mCI[, Ts_grain_ciH       := (s_grain_m + (0.95*(s_grain_sd))/sqrt(s_grain_n))]
-  dt_mCI[, Ts_residC_ciL       := (s_residC_m - (0.95*(s_residC_sd))/sqrt(s_residC_n))]
-  dt_mCI[, Ts_residC_ciH       := (s_residC_m + (0.95*(s_residC_sd))/sqrt(s_residC_n))]
-  dt_mCI[, Ts_cc_shootC_ciL       := (s_cc_shootC_m - (0.95*(s_cc_shootC_sd))/sqrt(s_cc_shootC_n))]
-  dt_mCI[, Ts_cc_shootC_ciH       := (s_cc_shootC_m + (0.95*(s_cc_shootC_sd))/sqrt(s_cc_shootC_n))]
-  dt_mCI[, Tm_SOC_ciL       := (m_SOC_m - (0.95*(m_SOC_sd))/sqrt(m_SOC_n))]
-  dt_mCI[, Tm_SOC_ciH       := (m_SOC_m + (0.95*(m_SOC_sd))/sqrt(m_SOC_n))]
-  dt_mCI[, Tm_N2O_ciL       := (m_N2O_m - (0.95*(m_N2O_sd))/sqrt(m_N2O_n))]
-  dt_mCI[, Tm_N2O_ciH       := (m_N2O_m + (0.95*(m_N2O_sd))/sqrt(m_N2O_n))]
-  dt_mCI[, Tm_dN2O_ciL      := (m_dN2O_m - (0.95*(m_dN2O_sd))/sqrt(m_dN2O_n))]
-  dt_mCI[, Tm_dN2O_ciH      := (m_dN2O_m + (0.95*(m_dN2O_sd))/sqrt(m_dN2O_n))]
-  dt_mCI[, Tm_iN2O_ciL      := (m_iN2O_m - (0.95*(m_iN2O_sd))/sqrt(m_iN2O_n))]
-  dt_mCI[, Tm_iN2O_ciH      := (m_iN2O_m + (0.95*(m_iN2O_sd))/sqrt(m_iN2O_n))]
-  dt_mCI[, Tm_GHG_ciL       := (m_GHG_m - (0.95*(m_GHG_sd))/sqrt(m_GHG_n))]
-  dt_mCI[, Tm_GHG_ciH       := (m_GHG_m + (0.95*(m_GHG_sd))/sqrt(m_GHG_n))]
-  dt_mCI[, Tm_grain_ciL       := (m_grain_m - (0.95*(m_grain_sd))/sqrt(m_grain_n))]
-  dt_mCI[, Tm_grain_ciH       := (m_grain_m + (0.95*(m_grain_sd))/sqrt(m_grain_n))]
-  dt_mCI[, Tm_residC_ciL       := (m_residC_m - (0.95*(m_residC_sd))/sqrt(m_residC_n))]
-  dt_mCI[, Tm_residC_ciH       := (m_residC_m + (0.95*(m_residC_sd))/sqrt(m_residC_n))]
-  dt_mCI[, Tm_cc_shootC_ciL       := (m_cc_shootC_m - (0.95*(m_cc_shootC_sd))/sqrt(m_cc_shootC_n))]
-  dt_mCI[, Tm_cc_shootC_ciH       := (m_cc_shootC_m + (0.95*(m_cc_shootC_sd))/sqrt(m_cc_shootC_n))]
+optimal_k = function(umap_val, k_val, full_ranger_dt, reduced_ranger_dt) {
+  k          = k_val # optimal clusters
+  kmeans     = kmeans(umap_val, centers = k, nstart = 100)
+  k_clusters =  fviz_cluster(kmeans, data = as.data.table(umap_val),
+                             geom = "point",
+                             ellipse.type = "norm",
+                             ggtheme = theme_bw())
+  k_dt = copy(reduced_ranger_dt)
+  k_dt[, cluster            := kmeans$cluster]
+  k_dt[, cluster            := as.character(cluster)]
+  k_dt[, ssp                := full_ranger_dt[, ssp]]
+  k_dt[, gridid             := full_ranger_dt[, gridid]]
+  setcolorder(k_dt, c('gridid','ssp'))
+  
+  k_list = list(kmeans = kmeans, plot = k_clusters, kmeans_dt = k_dt)
+  return(k_list)
 }
 #-----------------------------------------------------------------------------------------
 # FIGURES #
@@ -1594,34 +1752,51 @@ IPCC_map          = function(.lu_path, .shp_f, .raster) {
   gg_maps = list(IPCC = map)
   return(gg_maps)
 }
-gl_bar_potential  = function(.dt_biophys, .dt_yield, .ssp) {
+gl_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high, .ssp) {
   scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
                    'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
                    'ccl-ntill' = c('Legume CC + No-tillage'))
+  cols = c('ssp', 'y_block', 'scenario', 'GHG_m', 'GHG_ciL', 'GHG_ciH', 'type')
   # biophysical table
   .dt_biophys   = .dt_biophys[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_biophys$scenario = factor(.dt_biophys$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_biophys[, type := 'biophysical']
+  .dt_biophys = .dt_biophys[, ..cols]
   
   # yield-constrained table
   .dt_yield   = .dt_yield[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_yield$scenario = factor(.dt_yield$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_yield[, type := 'yield_cst']
+  .dt_yield = .dt_yield[, ..cols]
+  
+  # yield-constrained table, low c price
+  .dt_yield_low   = .dt_yield_low[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
+  .dt_yield_low$scenario = factor(.dt_yield_low$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
+  .dt_yield_low[, type := 'yield_cst_low']
+  .dt_yield_low = .dt_yield_low[, ..cols]
+  
+  # yield-constrained table, high c price
+  .dt_yield_high   = .dt_yield_high[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
+  .dt_yield_high$scenario = factor(.dt_yield_high$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
+  .dt_yield_high[, type := 'yield_cst_high']
+  .dt_yield_high = .dt_yield_high[, ..cols]
   
   # combine
-  .dt = rbind(.dt_biophys, .dt_yield)
-  
+  .dt = rbind(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high)
+
   plot_ghg = ggplot(data = .dt[ssp %in% .ssp], aes(x = scenario, 
-                                                   y = abs(GHG_m), group = type, fill = type)) +
+                                                   y = abs(GHG_m), group = fct_reorder(type, abs(GHG_m)), fill = type)) +
     geom_bar(stat = 'identity', position=position_dodge(), width = 0.8) +
+    geom_errorbar(aes(ymin=abs(GHG_ciL), ymax=abs(GHG_ciH)), width=.4, position=position_dodge(0.8)) +
     coord_flip() +
     geom_hline(yintercept = 0) +
     scale_x_discrete(labels = scenario_lbl, limits = c('ccg-res','ccl-res', 'ntill-res',
                                                        'ccg-ntill', 'ccl-ntill')) +
     ylab((expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Pg~CO[2]*-eq*~yr^-1*')')))) +
     scale_y_continuous(limits = c(0,1.5), breaks = seq(0,1.5, 0.25)) +
-    scale_fill_manual(name = "Scenario", labels  = c('Biophysical', 'Yield Constrained'),
-                        values = c('black', 'grey')) +
+    scale_fill_manual(name = "Scenario",
+                      limits = c('yield_cst', 'yield_cst_low', 'yield_cst_high', 'biophysical'),
+                      values = c("#22A884FF", "#414487FF", "#440154FF", "#FDE725FF")) +
     theme_bw() +
     theme(text = element_text(color = 'black', size = 20),
           axis.text    = element_text(size = 18, color = 'black'),
@@ -1635,34 +1810,51 @@ gl_bar_potential  = function(.dt_biophys, .dt_yield, .ssp) {
   ggplots = list(GHG = plot_ghg)
   return(ggplots)
 }
-rg_bar_potential  = function(.dt_biophys, .dt_yield, .ssp, .region) {
+rg_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high, .ssp, .region) {
   scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
                    'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
                    'ccl-ntill' = c('Legume CC + No-tillage'))
+  cols = c('ssp', 'y_block', 'scenario', 'IPCC_NAME', 'GHG_m', 'GHG_ciL', 'GHG_ciH', 'type')
   # biophysical table
   .dt_biophys   = .dt_biophys[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_biophys$scenario = factor(.dt_biophys$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_biophys[, type := 'biophysical']
+  .dt_biophys = .dt_biophys[, ..cols]
   
   # yield-constrained table
   .dt_yield   = .dt_yield[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_yield$scenario = factor(.dt_yield$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_yield[, type := 'yield_cst']
+  .dt_yield = .dt_yield[, ..cols]
+  
+  # yield-constrained table, low c price
+  .dt_yield_low   = .dt_yield_low[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
+  .dt_yield_low$scenario = factor(.dt_yield_low$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
+  .dt_yield_low[, type := 'yield_cst_low']
+  .dt_yield_low = .dt_yield_low[, ..cols]
+  
+  # yield-constrained table, high c price
+  .dt_yield_high   = .dt_yield_high[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
+  .dt_yield_high$scenario = factor(.dt_yield_high$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
+  .dt_yield_high[, type := 'yield_cst_high']
+  .dt_yield_high = .dt_yield_high[, ..cols]
   
   # combine
-  .dt = rbind(.dt_biophys, .dt_yield)
+  .dt = rbind(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high)
   
   plot_ghg = ggplot(data = .dt[ssp %in% .ssp & IPCC_NAME %in% .region], aes(x = scenario, 
-                                                   y = abs(GHG_m), group = type, fill = type)) +
+                                                   y = abs(GHG_m), group = fct_reorder(type, abs(GHG_m)), fill = type)) +
     geom_bar(stat = 'identity', position=position_dodge(), width = 0.8) +
+    geom_errorbar(aes(ymin=abs(GHG_ciL), ymax=abs(GHG_ciH)), width=.4, position=position_dodge(0.8)) +
     coord_flip() +
     geom_hline(yintercept = 0) +
     scale_x_discrete(labels = scenario_lbl, limits = c('ccg-res','ccl-res', 'ntill-res',
                                                        'ccg-ntill', 'ccl-ntill')) +
     ylab((expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Tg~CO[2]*-eq*~yr^-1*')')))) +
     scale_y_continuous(limits = c(0,500), breaks = seq(0,500, 100)) +
-    scale_fill_manual(name = "Scenario", labels  = c('Biophysical', 'Yield Constrained'),
-                      values = c('black', 'grey')) +
+    scale_fill_manual(name = "Scenario",
+                      limits = c('yield_cst', 'yield_cst_low', 'yield_cst_high', 'biophysical'),
+                      values = c("#22A884FF", "#414487FF", "#440154FF", "#FDE725FF")) +
     theme_bw() +
     theme(text = element_text(color = 'black', size = 20),
           axis.text    = element_text(size = 18, color = 'black'),
@@ -1867,7 +2059,7 @@ soc_gl_ha         = function(dt_gcm, .ssp, .time) {
                          'ccg-ntill', 'ccl-ntill')]
 
   bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
-                     aes(x = (s_SOC/period), y = scenario, fill = scenario)) +
+                     aes(x = abs(s_SOC/period), y = scenario, fill = scenario)) +
     geom_density_ridges(bandwidth = 0.015) +
     geom_vline(xintercept = 0) +
     ylab('Scenario') +
@@ -1875,7 +2067,7 @@ soc_gl_ha         = function(dt_gcm, .ssp, .time) {
     scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
                                  'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
     xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
-    scale_x_continuous(limits = c(-3, 0), breaks = seq(-3, 0, 0.5)) +
+    scale_x_continuous(limits = c(0, 3), breaks = seq(0, 3, 0.5)) +
     theme_bw() +
     theme(text = element_text(color = 'black', size = 20),
           axis.text    = element_text(size = 18, color = 'black'),
@@ -1905,7 +2097,7 @@ soc_rg_ha         = function(dt_gcm, .ssp, .time) {
                                   'ccg-ntill', 'ccl-ntill')]
   
   bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
-                     aes(x = (s_SOC/period), y = scenario, fill = scenario)) +
+                     aes(x = abs((s_SOC/period)), y = scenario, fill = scenario)) +
     geom_density_ridges(bandwidth = 0.015) +
     geom_vline(xintercept = 0) +
     facet_wrap(.~IPCC_NAME, nrow = 3, ncol = 2) +
@@ -1914,7 +2106,7 @@ soc_rg_ha         = function(dt_gcm, .ssp, .time) {
     scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
                                  'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
     xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
-    scale_x_continuous(limits = c(-3.5, 0), breaks = seq(-3.5, 0, 0.5)) +
+    scale_x_continuous(limits = c(0,3.5), breaks = seq(0, 3.5, 0.5)) +
     theme_bw() +
     theme(text = element_text(color = 'black', size = 20),
           axis.text    = element_text(size = 16, color = 'black'),
@@ -1924,6 +2116,135 @@ soc_rg_ha         = function(dt_gcm, .ssp, .time) {
           legend.position = 'none')
   
   return(bplot_soc)
+}
+soc_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else {
+    period = 85L
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
+                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
+                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = abs((s_SOC/period)), y = scenario, fill = scenario)) +
+    geom_density_ridges(bandwidth = 0.015) +
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(0,4.5), breaks = seq(0, 4.5, 0.5)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 20),
+          axis.text    = element_text(size = 16, color = 'black'),
+          strip.text   = element_text(size = 16, color = 'black'),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_soc)
+}
+ghg_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else {
+    period = 85L
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
+                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
+                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_ghg = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = abs((s_GHG/period)), y = scenario, fill = scenario)) +
+    geom_density_ridges(bandwidth = 0.015) +
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(0,4.5), breaks = seq(0, 4.5, 0.5)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 20),
+          axis.text    = element_text(size = 16, color = 'black'),
+          strip.text   = element_text(size = 16, color = 'black'),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_ghg)
+}
+grain_gl_rg_ha       = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else {
+    period = 85L
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
+                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
+                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_grain = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = (s_cr_grain/period), y = scenario, fill = scenario)) +
+    geom_density_ridges(bandwidth = 0.015) +
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Grain~Yield~Difference), '('*Mg~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(-0.5,1.2), breaks = seq(-0.5, 1.2, 0.25)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 20),
+          axis.text    = element_text(size = 16, color = 'black'),
+          strip.text   = element_text(size = 16, color = 'black'),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_grain)
 }
 bmp_map           = function(dt_r, .ssp) {
   require(ggthemes)
@@ -1942,14 +2263,14 @@ bmp_map           = function(dt_r, .ssp) {
   # update scenarios
   dt_r[scenario %in% 'BAU',       scenario := '1']
   dt_r[scenario %in% 'res',       scenario := '2']
-  dt_r[scenario %in% 'ntill',     scenario := '3']
-  dt_r[scenario %in% 'ntill-res', scenario := '4']
-  dt_r[scenario %in% 'ccg',       scenario := '5']
-  dt_r[scenario %in% 'ccg-res',   scenario := '6']
-  dt_r[scenario %in% 'ccl',       scenario := '7']
-  dt_r[scenario %in% 'ccl-res',   scenario := '8']
-  dt_r[scenario %in% 'ccg-ntill', scenario := '9']
-  dt_r[scenario %in% 'ccl-ntill', scenario := '10']
+  # dt_r[scenario %in% 'ntill',     scenario := '3']
+  dt_r[scenario %in% 'ntill-res', scenario := '3']
+  # dt_r[scenario %in% 'ccg',       scenario := '5']
+  dt_r[scenario %in% 'ccg-res',   scenario := '4']
+  # dt_r[scenario %in% 'ccl',       scenario := '7']
+  dt_r[scenario %in% 'ccl-res',   scenario := '5']
+  dt_r[scenario %in% 'ccg-ntill', scenario := '6']
+  dt_r[scenario %in% 'ccl-ntill', scenario := '7']
   dt_r[, scenario := as.numeric(scenario)]
   
   # create raster
@@ -1998,9 +2319,12 @@ bmp_map           = function(dt_r, .ssp) {
                           'Turks and Caicos Islands', 'Svalbard', 'Saint Martin', 'Saint Barthelemy', 'South Georgia South Sandwich Islands',
                           'Guernsey', 'Jersey')
   wrld_simpl_sf_eckiv = wrld_simpl_sf_eckiv[!wrld_simpl_sf_eckiv$NAME %in% remove,]
-  colors = c('1' = "#7A0403FF", '2' = "#C82803FF",'3' = "#F36215FF", '4'= "#FCB036FF", 
-             '5' = "#D6E635FF", '6' = "#8EFF49FF",'7' = "#2CF09EFF", '8' = "#23C3E4FF", 
-             '9' = "#4681F7FF", '10'= "#3F3994FF")
+  # colors = c('1' = "#7A0403FF", '2' = "#C82803FF",'3' = "#F36215FF", '4'= "#FCB036FF",
+  #            '5' = "#D6E635FF", '6' = "#8EFF49FF",'7' = "#2CF09EFF", '8' = "#23C3E4FF",
+  #            '9' = "#4681F7FF", '10'= "#3F3994FF")
+  colors = c('1' = "#7A0403FF", '2' = "#F36215FF", 
+             '3' = "#FCB036FF", '4' = "#2CF09EFF", '5' = "#23C3E4FF", 
+             '6' = "#4681F7FF", '7'= "#3F3994FF")
     # create maps
   gg_BMP = ggplot() + 
     geom_sf(data = wrld_simpl_sf_eckiv, fill = "grey75",
@@ -2911,7 +3235,6 @@ cumul_rg_line            = function(dt, dt_gcm) {
   ggplots = list(GHG = gg_GHG_all)
   return(ggplots)
 }
-
 annual_total_rg_bp       = function(dt_gcm, .ssp, .region) {
 
   scenario_lbl = c('res' = c('Residue'), 'ntill' = c('No-tillage'), 'ccg' = c('Grass CC'),

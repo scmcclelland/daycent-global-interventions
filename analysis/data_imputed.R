@@ -1,6 +1,6 @@
 # filename:    data_imputed.R
 # created:     22 February 2024
-# updated:     23 February 2024
+# updated:     11 March 2024
 # author:      S.C. McClelland
 # description: This file imputes data from DayCent simulations
 #              to all global cropland soil N2O, CO2 over time.
@@ -45,6 +45,25 @@ res_gcm_imp_370       = impute_missing_gcm(res_relative_gcm_flux,
 res_gcm_imp_dt        = rbind(res_gcm_imp_hist, res_gcm_imp_126, res_gcm_imp_370)
 gc()
 saveRDS(res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-res.rds', sep = '/'))
+# GCM PRICE
+res_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-res.rds', sep = '/'))
+res_gcm_imp_hist       = impute_missing_pr_gcm(res_relative_gcm_price,
+                                           rast(paste(lu.path, raster, sep = '/')),
+                                           'historical', 'historical')
+res_gcm_imp_hist[, variable := 'annual_price']
+res_gcm_imp_126        = impute_missing_pr_gcm(res_relative_gcm_price,
+                                               rast(paste(lu.path, raster, sep = '/')),
+                                               unique(res_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                               'ssp126')
+res_gcm_imp_126[, variable := 'annual_price']
+res_gcm_imp_370        = impute_missing_pr_gcm(res_relative_gcm_price,
+                                               rast(paste(lu.path, raster, sep = '/')),
+                                               unique(res_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                               'ssp370')
+res_gcm_imp_370[, variable := 'annual_price']
+res_gcm_imp_dt        = rbind(res_gcm_imp_hist, res_gcm_imp_126, res_gcm_imp_370)
+gc()
+saveRDS(res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # NTILL
 #-------------------------------------------------------------------------------
@@ -70,6 +89,25 @@ ntill_gcm_imp_370       = impute_missing_gcm(ntill_relative_gcm_flux,
 ntill_gcm_imp_dt        = rbind(ntill_gcm_imp_hist, ntill_gcm_imp_126, ntill_gcm_imp_370)
 gc()
 saveRDS(ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ntill.rds', sep = '/'))
+# GCM PRICE
+ntill_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ntill.rds', sep = '/'))
+ntill_gcm_imp_hist       = impute_missing_pr_gcm(ntill_relative_gcm_price,
+                                               rast(paste(lu.path, raster, sep = '/')),
+                                               'historical', 'historical')
+ntill_gcm_imp_hist[, variable := 'annual_price']
+ntill_gcm_imp_126        = impute_missing_pr_gcm(ntill_relative_gcm_price,
+                                               rast(paste(lu.path, raster, sep = '/')),
+                                               unique(ntill_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                               'ssp126')
+ntill_gcm_imp_126[, variable := 'annual_price']
+ntill_gcm_imp_370        = impute_missing_pr_gcm(ntill_relative_gcm_price,
+                                               rast(paste(lu.path, raster, sep = '/')),
+                                               unique(ntill_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                               'ssp370')
+ntill_gcm_imp_370[, variable := 'annual_price']
+ntill_gcm_imp_dt        = rbind(ntill_gcm_imp_hist, ntill_gcm_imp_126, ntill_gcm_imp_370)
+gc()
+saveRDS(ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # NTILL-RES
 #-------------------------------------------------------------------------------
@@ -95,6 +133,25 @@ ntill_res_gcm_imp_370       = impute_missing_gcm(ntill_res_relative_gcm_flux,
 ntill_res_gcm_imp_dt        = rbind(ntill_res_gcm_imp_hist, ntill_res_gcm_imp_126, ntill_res_gcm_imp_370)
 gc()
 saveRDS(ntill_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ntill-res.rds', sep = '/'))
+# GCM PRICE
+ntill_res_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ntill-res.rds', sep = '/'))
+ntill_res_gcm_imp_hist       = impute_missing_pr_gcm(ntill_res_relative_gcm_price,
+                                                 rast(paste(lu.path, raster, sep = '/')),
+                                                 'historical', 'historical')
+ntill_res_gcm_imp_hist[, variable := 'annual_price']
+ntill_res_gcm_imp_126        = impute_missing_pr_gcm(ntill_res_relative_gcm_price,
+                                                 rast(paste(lu.path, raster, sep = '/')),
+                                                 unique(ntill_res_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                                 'ssp126')
+ntill_res_gcm_imp_126[, variable := 'annual_price']
+ntill_res_gcm_imp_370        = impute_missing_pr_gcm(ntill_res_relative_gcm_price,
+                                                 rast(paste(lu.path, raster, sep = '/')),
+                                                 unique(ntill_res_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                                 'ssp370')
+ntill_res_gcm_imp_370[, variable := 'annual_price']
+ntill_res_gcm_imp_dt        = rbind(ntill_res_gcm_imp_hist, ntill_res_gcm_imp_126, ntill_res_gcm_imp_370)
+gc()
+saveRDS(ntill_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ntill-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG
 #-------------------------------------------------------------------------------
@@ -120,6 +177,26 @@ ccg_gcm_imp_370       = impute_missing_gcm(ccg_relative_gcm_flux,
 ccg_gcm_imp_dt        = rbind(ccg_gcm_imp_hist, ccg_gcm_imp_126, ccg_gcm_imp_370)
 gc()
 saveRDS(ccg_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccg.rds', sep = '/'))
+
+# GCM PRICE
+ccg_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg.rds', sep = '/'))
+ccg_gcm_imp_hist       = impute_missing_pr_gcm(ccg_relative_gcm_price,
+                                                 rast(paste(lu.path, raster_cc, sep = '/')),
+                                                 'historical', 'historical')
+ccg_gcm_imp_hist[, variable := 'annual_price']
+ccg_gcm_imp_126        = impute_missing_pr_gcm(ccg_relative_gcm_price,
+                                                 rast(paste(lu.path, raster_cc, sep = '/')),
+                                                 unique(ccg_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                                 'ssp126')
+ccg_gcm_imp_126[, variable := 'annual_price']
+ccg_gcm_imp_370        = impute_missing_pr_gcm(ccg_relative_gcm_price,
+                                                 rast(paste(lu.path, raster_cc, sep = '/')),
+                                                 unique(ccg_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                                 'ssp370')
+ccg_gcm_imp_370[, variable := 'annual_price']
+ccg_gcm_imp_dt        = rbind(ccg_gcm_imp_hist, ccg_gcm_imp_126, ccg_gcm_imp_370)
+gc()
+saveRDS(ccg_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccg.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG-RES
 #-------------------------------------------------------------------------------
@@ -145,6 +222,26 @@ ccg_res_gcm_imp_370       = impute_missing_gcm(ccg_res_relative_gcm_flux,
 ccg_res_gcm_imp_dt        = rbind(ccg_res_gcm_imp_hist, ccg_res_gcm_imp_126, ccg_res_gcm_imp_370)
 gc()
 saveRDS(ccg_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccg-res.rds', sep = '/'))
+
+# GCM PRICE
+ccg_res_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg-res.rds', sep = '/'))
+ccg_res_gcm_imp_hist       = impute_missing_pr_gcm(ccg_res_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               'historical', 'historical')
+ccg_res_gcm_imp_hist[, variable := 'annual_price']
+ccg_res_gcm_imp_126        = impute_missing_pr_gcm(ccg_res_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               unique(ccg_res_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                               'ssp126')
+ccg_res_gcm_imp_126[, variable := 'annual_price']
+ccg_res_gcm_imp_370        = impute_missing_pr_gcm(ccg_res_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               unique(ccg_res_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                               'ssp370')
+ccg_res_gcm_imp_370[, variable := 'annual_price']
+ccg_res_gcm_imp_dt        = rbind(ccg_res_gcm_imp_hist, ccg_res_gcm_imp_126, ccg_res_gcm_imp_370)
+gc()
+saveRDS(ccg_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccg-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL
 #-------------------------------------------------------------------------------
@@ -170,6 +267,26 @@ ccl_gcm_imp_370       = impute_missing_gcm(ccl_relative_gcm_flux,
 ccl_gcm_imp_dt        = rbind(ccl_gcm_imp_hist, ccl_gcm_imp_126, ccl_gcm_imp_370)
 gc()
 saveRDS(ccl_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccl.rds', sep = '/'))
+
+# GCM PRICE
+ccl_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl.rds', sep = '/'))
+ccl_gcm_imp_hist       = impute_missing_pr_gcm(ccl_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               'historical', 'historical')
+ccl_gcm_imp_hist[, variable := 'annual_price']
+ccl_gcm_imp_126        = impute_missing_pr_gcm(ccl_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               unique(ccl_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                               'ssp126')
+ccl_gcm_imp_126[, variable := 'annual_price']
+ccl_gcm_imp_370        = impute_missing_pr_gcm(ccl_relative_gcm_price,
+                                               rast(paste(lu.path, raster_cc, sep = '/')),
+                                               unique(ccl_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                               'ssp370')
+ccl_gcm_imp_370[, variable := 'annual_price']
+ccl_gcm_imp_dt        = rbind(ccl_gcm_imp_hist, ccl_gcm_imp_126, ccl_gcm_imp_370)
+gc()
+saveRDS(ccl_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccl.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL-RES
 #-------------------------------------------------------------------------------
@@ -195,6 +312,26 @@ ccl_res_gcm_imp_370       = impute_missing_gcm(ccl_res_relative_gcm_flux,
 ccl_res_gcm_imp_dt        = rbind(ccl_res_gcm_imp_hist, ccl_res_gcm_imp_126, ccl_res_gcm_imp_370)
 gc()
 saveRDS(ccl_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccl-res.rds', sep = '/'))
+
+# GCM PRICE
+ccl_res_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl-res.rds', sep = '/'))
+ccl_res_gcm_imp_hist       = impute_missing_pr_gcm(ccl_res_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   'historical', 'historical')
+ccl_res_gcm_imp_hist[, variable := 'annual_price']
+ccl_res_gcm_imp_126        = impute_missing_pr_gcm(ccl_res_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccl_res_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                                   'ssp126')
+ccl_res_gcm_imp_126[, variable := 'annual_price']
+ccl_res_gcm_imp_370        = impute_missing_pr_gcm(ccl_res_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccl_res_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                                   'ssp370')
+ccl_res_gcm_imp_370[, variable := 'annual_price']
+ccl_res_gcm_imp_dt        = rbind(ccl_res_gcm_imp_hist, ccl_res_gcm_imp_126, ccl_res_gcm_imp_370)
+gc()
+saveRDS(ccl_res_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccl-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG-NTILL-RES
 #-------------------------------------------------------------------------------
@@ -220,6 +357,26 @@ ccg_ntill_gcm_imp_370       = impute_missing_gcm(ccg_ntill_relative_gcm_flux,
 ccg_ntill_gcm_imp_dt        = rbind(ccg_ntill_gcm_imp_hist, ccg_ntill_gcm_imp_126, ccg_ntill_gcm_imp_370)
 gc()
 saveRDS(ccg_ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccg-ntill.rds', sep = '/'))
+
+# GCM PRICE
+ccg_ntill_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg-ntill.rds', sep = '/'))
+ccg_ntill_gcm_imp_hist       = impute_missing_pr_gcm(ccg_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   'historical', 'historical')
+ccg_ntill_gcm_imp_hist[, variable := 'annual_price']
+ccg_ntill_gcm_imp_126        = impute_missing_pr_gcm(ccg_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccg_ntill_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                                   'ssp126')
+ccg_ntill_gcm_imp_126[, variable := 'annual_price']
+ccg_ntill_gcm_imp_370        = impute_missing_pr_gcm(ccg_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccg_ntill_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                                   'ssp370')
+ccg_ntill_gcm_imp_370[, variable := 'annual_price']
+ccg_ntill_gcm_imp_dt        = rbind(ccg_ntill_gcm_imp_hist, ccg_ntill_gcm_imp_126, ccg_ntill_gcm_imp_370)
+gc()
+saveRDS(ccg_ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccg-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL-NTILL-RES
 #-------------------------------------------------------------------------------
@@ -245,4 +402,24 @@ ccl_ntill_gcm_imp_370       = impute_missing_gcm(ccl_ntill_relative_gcm_flux,
 ccl_ntill_gcm_imp_dt        = rbind(ccl_ntill_gcm_imp_hist, ccl_ntill_gcm_imp_126, ccl_ntill_gcm_imp_370)
 gc()
 saveRDS(ccl_ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-ccl-ntill.rds', sep = '/'))
+
+# GCM PRICE
+ccl_ntill_relative_gcm_price = readRDS(paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl-ntill.rds', sep = '/'))
+ccl_ntill_gcm_imp_hist       = impute_missing_pr_gcm(ccl_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   'historical', 'historical')
+ccl_ntill_gcm_imp_hist[, variable := 'annual_price']
+ccl_ntill_gcm_imp_126        = impute_missing_pr_gcm(ccl_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccl_ntill_relative_gcm_price[ssp %in% 'ssp126', gcm]), 
+                                                   'ssp126')
+ccl_ntill_gcm_imp_126[, variable := 'annual_price']
+ccl_ntill_gcm_imp_370        = impute_missing_pr_gcm(ccl_ntill_relative_gcm_price,
+                                                   rast(paste(lu.path, raster_cc, sep = '/')),
+                                                   unique(ccl_ntill_relative_gcm_price[ssp %in% 'ssp370', gcm]), 
+                                                   'ssp370')
+ccl_ntill_gcm_imp_370[, variable := 'annual_price']
+ccl_ntill_gcm_imp_dt        = rbind(ccl_ntill_gcm_imp_hist, ccl_ntill_gcm_imp_126, ccl_ntill_gcm_imp_370)
+gc()
+saveRDS(ccl_ntill_gcm_imp_dt, file = paste(data.path, 'imputed-gcm-relative-responses-weighted-mean-grain-price-ccl-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------

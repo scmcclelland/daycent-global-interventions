@@ -1,6 +1,6 @@
 # filename:    data_aggregated.R
 # created:     06 March 2023
-# updated:     28 February 2024
+# updated:     13 March 2024
 # author:      S.C. McClelland
 # description: This file generates data from DayCent simulations
 #              for global cropland soil N2O, CO2 over time.
@@ -149,14 +149,18 @@ saveRDS(res_relative_flux, file = paste(data.path, 'ensemble-relative-responses-
 res_relative_gcm_flux     = cell_crop_area_gcm_wmean(base.path, 'res', lu.path, raster,
                                                  res_bad_run_f)
 saveRDS(res_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-res.rds', sep = '/'))
-# GCM VARIABLES
-res_relative_var_gcm_flux = cell_crop_area_gcm_var_wmean(base.path, 'res', lu.path, raster,
-                                                         res_bad_run_f)
-saveRDS(res_relative_var_gcm_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-res.rds', sep = '/'))
+# GCM PRICE
+res_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'res', lu.path, raster,
+                                                         res_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(res_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-res.rds', sep = '/'))
+# ABSOLUTE
+res_absolute_flux         = cell_crop_area_wmean_abs(base.path, 'res', lu.path, raster,
+                                                 res_bad_run_f)
+saveRDS(res_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # NTILL
 #-------------------------------------------------------------------------------
-conv_bad_gr   = fread(paste(base.path, 'data/bad-run-years-for-conv-gridid.csv', sep = '/'))
+conv_bad_gr     = fread(paste(base.path, 'data/bad-run-years-for-conv-gridid.csv', sep = '/'))
 ntill_bad_gr    = fread(paste(base.path, 'data/bad-run-years-for-ntill-gridid.csv', sep = '/'))
 ntill_bad_run_f = bad_run_match(ntill_bad_gr, conv_bad_gr)
 # ENSEMBLE
@@ -167,10 +171,14 @@ saveRDS(ntill_relative_flux, file = paste(data.path, 'ensemble-relative-response
 ntill_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ntill', lu.path, raster,
                                                  ntill_bad_run_f)
 saveRDS(ntill_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ntill.rds', sep = '/'))
-# GCM VARIABLES
-ntill_relative_var_gcm_flux = cell_crop_area_gcm_var_wmean(base.path, 'ntill', lu.path, raster,
-                                                         ntill_bad_run_f)
-saveRDS(ntill_relative_var_gcm_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ntill.rds', sep = '/'))
+# GCM PRICE
+ntill_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ntill', lu.path, raster,
+                                                     ntill_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ntill_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ntill.rds', sep = '/'))
+# ABSOLUTE
+ntill_absolute_flux     = cell_crop_area_wmean_abs(base.path, 'ntill', lu.path, raster,
+                                               ntill_bad_run_f)
+saveRDS(ntill_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # NTILL-RES
 #-------------------------------------------------------------------------------
@@ -178,17 +186,21 @@ conv_bad_gr         = fread(paste(base.path, 'data/bad-run-years-for-conv-gridid
 ntill_res_bad_gr    = fread(paste(base.path, 'data/bad-run-years-for-ntill-res-gridid.csv', sep = '/'))
 ntill_res_bad_run_f = bad_run_match(ntill_res_bad_gr, conv_bad_gr)
 # ENSEMBLE
-ntill_res_relative_flux     = cell_crop_area_wmean(base.path, 'ntill-res', lu.path, raster,
+ntill_res_relative_flux         = cell_crop_area_wmean(base.path, 'ntill-res', lu.path, raster,
                                                ntill_res_bad_run_f)
 saveRDS(ntill_res_relative_flux, file = paste(data.path, 'ensemble-relative-responses-weighted-mean-ntill-res.rds', sep = '/'))
 # GCM
 ntill_res_relative_gcm_flux     = cell_crop_area_gcm_wmean(base.path, 'ntill-res', lu.path, raster,
                                                    ntill_res_bad_run_f)
 saveRDS(ntill_res_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ntill-res.rds', sep = '/'))
-# GCM VARIABLES
-ntill_res_relative_var_gcm_flux = cell_crop_area_gcm_var_wmean(base.path, 'ntill-res', lu.path, raster,
-                                                           ntill_res_bad_run_f)
-saveRDS(ntill_res_relative_var_gcm_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ntill-res.rds', sep = '/'))
+# GCM PRICE
+ntill_res_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ntill-res', lu.path, raster,
+                                                       ntill_res_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ntill_res_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ntill-res.rds', sep = '/'))
+# ABSOLUTE
+ntill_res_absolute_flux         = cell_crop_area_wmean_abs(base.path, 'ntill-res', lu.path, raster,
+                                                   ntill_res_bad_run_f)
+saveRDS(ntill_res_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ntill-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG
 #-------------------------------------------------------------------------------
@@ -200,13 +212,17 @@ ccg_relative_flux         = cell_crop_area_wmean(base.path, 'ccg', lu.path, rast
                                                ccg_bad_run_f)
 saveRDS(ccg_relative_flux, file = paste(data.path, 'ensemble-relative-responses-weighted-mean-ccg.rds', sep = '/'))
 # GCM
-ccg_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccg', lu.path, raster_cc,
+ccg_relative_gcm_flux     = cell_crop_area_gcm_wmean(base.path, 'ccg', lu.path, raster_cc,
                                                    ccg_bad_run_f)
 saveRDS(ccg_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccg.rds', sep = '/'))
-# GCM VARIABLES
-ccg_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccg', lu.path, raster_cc,
+# GCM PRICE
+ccg_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccg', lu.path, raster_cc,
+                                                 ccg_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccg_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg.rds', sep = '/'))
+# ABSOLUTE
+ccg_absolute_flux         = cell_crop_area_wmean_abs(base.path, 'ccg', lu.path, raster_cc,
                                                  ccg_bad_run_f)
-saveRDS(ccg_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccg.rds', sep = '/'))
+saveRDS(ccg_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccg.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG-RES
 #-------------------------------------------------------------------------------
@@ -221,10 +237,14 @@ saveRDS(ccg_res_relative_flux, file = paste(data.path, 'ensemble-relative-respon
 ccg_res_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccg-res', lu.path, raster_cc,
                                                        ccg_res_bad_run_f)
 saveRDS(ccg_res_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccg-res.rds', sep = '/'))
-# GCM VARIABLES
-ccg_res_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccg-res', lu.path, raster_cc,
-                                                         ccg_res_bad_run_f)
-saveRDS(ccg_res_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccg-res.rds', sep = '/'))
+# GCM PRICE
+ccg_res_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccg-res', lu.path, raster_cc,
+                                                     ccg_res_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccg_res_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg-res.rds', sep = '/'))
+# ABSOLUTE
+ccg_res_absolute_flux         = cell_crop_area_wmean_abs(base.path, 'ccg-res', lu.path, raster_cc,
+                                                     ccg_res_bad_run_f)
+saveRDS(ccg_res_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccg-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL
 #-------------------------------------------------------------------------------
@@ -239,10 +259,14 @@ saveRDS(ccl_relative_flux, file = paste(data.path, 'ensemble-relative-responses-
 ccl_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccl', lu.path, raster_cc,
                                                  ccl_bad_run_f)
 saveRDS(ccl_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccl.rds', sep = '/'))
-# GCM VARIABLES
-ccl_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccl', lu.path, raster_cc,
-                                                         ccl_bad_run_f)
-saveRDS(ccl_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccl.rds', sep = '/'))
+# GCM PRICE
+ccl_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccl', lu.path, raster_cc,
+                                                     ccl_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccl_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl.rds', sep = '/'))
+# ABSOLUTE
+ccl_absolute_flux     = cell_crop_area_wmean_abs(base.path, 'ccl', lu.path, raster_cc,
+                                             ccl_bad_run_f)
+saveRDS(ccl_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccl.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL-RES
 #-------------------------------------------------------------------------------
@@ -257,10 +281,14 @@ saveRDS(ccl_res_relative_flux, file = paste(data.path, 'ensemble-relative-respon
 ccl_res_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccl-res', lu.path, raster_cc,
                                                      ccl_res_bad_run_f)
 saveRDS(ccl_res_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccl-res.rds', sep = '/'))
-# GCM VARIABLES
-ccl_res_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccl-res', lu.path, raster_cc,
-                                                             ccl_res_bad_run_f)
-saveRDS(ccl_res_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccl-res.rds', sep = '/'))
+# GCM PRICE
+ccl_res_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccl-res', lu.path, raster_cc,
+                                                         ccl_res_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccl_res_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl-res.rds', sep = '/'))
+# ABSOLUTE
+ccl_res_absolute_flux     = cell_crop_area_wmean_abs(base.path, 'ccl-res', lu.path, raster_cc,
+                                                 ccl_res_bad_run_f)
+saveRDS(ccl_res_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccl-res.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCG-NTILL-RES
 #-------------------------------------------------------------------------------
@@ -275,10 +303,14 @@ saveRDS(ccg_ntill_relative_flux, file = paste(data.path, 'ensemble-relative-resp
 ccg_ntill_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccg-ntill', lu.path, raster_cc,
                                                  ccg_ntill_bad_run_f)
 saveRDS(ccg_ntill_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccg-ntill.rds', sep = '/'))
-# GCM VARIABLES
-ccg_ntill_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccg-ntill', lu.path, raster_cc,
-                                                             ccg_ntill_bad_run_f)
-saveRDS(ccg_ntill_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccg-ntill.rds', sep = '/'))
+# GCM PRICE
+ccg_ntill_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccg-ntill', lu.path, raster_cc,
+                                                         ccg_ntill_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccg_ntill_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccg-ntill.rds', sep = '/'))
+# ABSOLUTE
+ccg_ntill_absolute_flux     = cell_crop_area_wmean_abs(base.path, 'ccg-ntill', lu.path, raster_cc,
+                                                   ccg_ntill_bad_run_f)
+saveRDS(ccg_ntill_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccg-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------
 # CCL-NTILL-RES
 #-------------------------------------------------------------------------------
@@ -293,8 +325,12 @@ saveRDS(ccl_ntill_relative_flux, file = paste(data.path, 'ensemble-relative-resp
 ccl_ntill_relative_gcm_flux = cell_crop_area_gcm_wmean(base.path, 'ccl-ntill', lu.path, raster_cc,
                                                        ccl_ntill_bad_run_f)
 saveRDS(ccl_ntill_relative_gcm_flux, file = paste(data.path, 'gcm-relative-responses-weighted-mean-ccl-ntill.rds', sep = '/'))
-# GCM VARIABLES
-ccl_ntill_relative_gcm_var_flux = cell_crop_area_gcm_var_wmean(base.path, 'ccl-ntill', lu.path, raster_cc,
-                                                               ccl_ntill_bad_run_f)
-saveRDS(ccl_ntill_relative_gcm_var_flux, file = paste(data.path, 'gcm-relative-driver-responses-weighted-mean-ccl-ntill.rds', sep = '/'))
+# GCM PRICE
+ccl_ntill_relative_gcm_price    = cell_crop_area_gcm_price(base.path, 'ccl-ntill', lu.path, raster_cc,
+                                                         ccl_ntill_bad_run_f, 'OECD-Grain-Outlook-2023-2032.csv')
+saveRDS(ccl_ntill_relative_gcm_price, file = paste(data.path, 'gcm-relative-grain-price-weighted-mean-ccl-ntill.rds', sep = '/'))
+# ABSOLUTE
+ccl_ntill_absolute_flux     = cell_crop_area_wmean_abs(base.path, 'ccl-ntill', lu.path, raster_cc,
+                                                   ccl_ntill_bad_run_f)
+saveRDS(ccl_ntill_absolute_flux, file = paste(data.path, 'ensemble-absolute-responses-weighted-mean-ccl-ntill.rds', sep = '/'))
 #-------------------------------------------------------------------------------

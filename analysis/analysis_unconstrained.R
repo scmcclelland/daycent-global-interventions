@@ -1,10 +1,10 @@
-# filename:    analysis_biophysical.R
+# filename:    analysis_unconstrained.R
 # created:     23 February 2024
-# updated:     26 February 2024
+# updated:     12 March 2024
 # author:      S.C. McClelland
 # description: This file analyzes GHG mitigation potential from DayCent simulations
 #              for global cropland over time for different interventions and SSPs. 
-#              GHG mitigation potential is biophysical potential.
+#              GHG mitigation potential is unconstrained potential.
 #-------------------------------------------------------------------------------
 library(data.table)
 library(factoextra)
@@ -147,7 +147,7 @@ ccg_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
 ccl_ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
 ccl_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
 #-------------------------------------------------------------------------------
-# BIOPHYSICAL MITIGATION POTENTIAL | GLOBAL
+# UNCONSTRAINED MITIGATION POTENTIAL | GLOBAL
 #-------------------------------------------------------------------------------
 k_cols = c('cell','ssp', 'gcm','y_block','total_crop_area_ha','GHG_area', 'GRAIN_area')
   # RESIDUE
@@ -157,6 +157,7 @@ residue_cst_dt = residue_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 residue_2050_dt  = residue_cst_dt[y_block == 2050,]
 residue_2050_dt  = residue_2050_dt[, ..k_cols]
 residue_2050_gcm = residue_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+residue_2050_gcm[, scenario := 'res']
 # potential | 2050
 residue_2050_gl  = global_mean_CI(residue_2050_gcm, '2050')
 residue_2050_gl[, scenario := 'res']
@@ -165,6 +166,7 @@ residue_2050_gl[, scenario := 'res']
 residue_2030_dt  = residue_cst_dt[y_block == 2030,]
 residue_2030_dt  = residue_2030_dt[, ..k_cols]
 residue_2030_gcm = residue_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+residue_2030_gcm[, scenario := 'res']
 # potential | 2030
 residue_2030_gl  = global_mean_CI(residue_2030_gcm, '2030')
 residue_2030_gl[, scenario := 'res']
@@ -176,6 +178,7 @@ ntill_cst_dt = ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ntill_2050_dt  = ntill_cst_dt[y_block == 2050,]
 ntill_2050_dt  = ntill_2050_dt[, ..k_cols]
 ntill_2050_gcm = ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ntill_2050_gcm[, scenario := 'ntill']
 # potential | 2050
 ntill_2050_gl  = global_mean_CI(ntill_2050_gcm, '2050')
 ntill_2050_gl[, scenario := 'ntill']
@@ -184,6 +187,7 @@ ntill_2050_gl[, scenario := 'ntill']
 ntill_2030_dt  = ntill_cst_dt[y_block == 2030,]
 ntill_2030_dt  = ntill_2030_dt[, ..k_cols]
 ntill_2030_gcm = ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ntill_2030_gcm[, scenario := 'ntill']
 # potential | 2030
 ntill_2030_gl  = global_mean_CI(ntill_2030_gcm, '2030')
 ntill_2030_gl[, scenario := 'ntill']
@@ -195,6 +199,7 @@ ntill_res_cst_dt = ntill_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ntill_res_2050_dt  = ntill_res_cst_dt[y_block == 2050,]
 ntill_res_2050_dt  = ntill_res_2050_dt[, ..k_cols]
 ntill_res_2050_gcm = ntill_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ntill_res_2050_gcm[, scenario := 'ntill-res']
 # potential | 2050
 ntill_res_2050_gl  = global_mean_CI(ntill_res_2050_gcm, '2050')
 ntill_res_2050_gl[, scenario := 'ntill-res']
@@ -203,6 +208,7 @@ ntill_res_2050_gl[, scenario := 'ntill-res']
 ntill_res_2030_dt  = ntill_res_cst_dt[y_block == 2030,]
 ntill_res_2030_dt  = ntill_res_2030_dt[, ..k_cols]
 ntill_res_2030_gcm = ntill_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ntill_res_2030_gcm[, scenario := 'ntill-res']
 # potential | 2030
 ntill_res_2030_gl  = global_mean_CI(ntill_res_2030_gcm, '2030')
 ntill_res_2030_gl[, scenario := 'ntill-res']
@@ -214,6 +220,7 @@ ccg_cst_dt = ccg_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_2050_dt  = ccg_cst_dt[y_block == 2050,]
 ccg_2050_dt  = ccg_2050_dt[, ..k_cols]
 ccg_2050_gcm = ccg_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_2050_gcm[, scenario := 'ccg']
 # potential | 2050
 ccg_2050_gl  = global_mean_CI(ccg_2050_gcm, '2050')
 ccg_2050_gl[, scenario := 'ccg']
@@ -222,6 +229,7 @@ ccg_2050_gl[, scenario := 'ccg']
 ccg_2030_dt  = ccg_cst_dt[y_block == 2030,]
 ccg_2030_dt  = ccg_2030_dt[, ..k_cols]
 ccg_2030_gcm = ccg_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_2030_gcm[, scenario := 'ccg']
 # potential | 2030
 ccg_2030_gl  = global_mean_CI(ccg_2030_gcm, '2030')
 ccg_2030_gl[, scenario := 'ccg']
@@ -233,6 +241,7 @@ ccg_res_cst_dt = ccg_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_res_2050_dt  = ccg_res_cst_dt[y_block == 2050,]
 ccg_res_2050_dt  = ccg_res_2050_dt[, ..k_cols]
 ccg_res_2050_gcm = ccg_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_res_2050_gcm[, scenario := 'ccg-res']
 # potential | 2050
 ccg_res_2050_gl  = global_mean_CI(ccg_res_2050_gcm, '2050')
 ccg_res_2050_gl[, scenario := 'ccg-res']
@@ -241,6 +250,7 @@ ccg_res_2050_gl[, scenario := 'ccg-res']
 ccg_res_2030_dt  = ccg_res_cst_dt[y_block == 2030,]
 ccg_res_2030_dt  = ccg_res_2030_dt[, ..k_cols]
 ccg_res_2030_gcm = ccg_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_res_2030_gcm[, scenario := 'ccg-res']
 # potential | 2030
 ccg_res_2030_gl  = global_mean_CI(ccg_res_2030_gcm, '2030')
 ccg_res_2030_gl[, scenario := 'ccg-res']
@@ -252,6 +262,7 @@ ccl_cst_dt = ccl_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_2050_dt  = ccl_cst_dt[y_block == 2050,]
 ccl_2050_dt  = ccl_2050_dt[, ..k_cols]
 ccl_2050_gcm = ccl_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_2050_gcm[, scenario := 'ccl']
 # potential | 2050
 ccl_2050_gl  = global_mean_CI(ccl_2050_gcm, '2050')
 ccl_2050_gl[, scenario := 'ccl']
@@ -260,6 +271,7 @@ ccl_2050_gl[, scenario := 'ccl']
 ccl_2030_dt  = ccl_cst_dt[y_block == 2030,]
 ccl_2030_dt  = ccl_2030_dt[, ..k_cols]
 ccl_2030_gcm = ccl_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_2030_gcm[, scenario := 'ccl']
 # potential | 2030
 ccl_2030_gl  = global_mean_CI(ccl_2030_gcm, '2030')
 ccl_2030_gl[, scenario := 'ccl']
@@ -271,6 +283,7 @@ ccl_res_cst_dt = ccl_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_res_2050_dt  = ccl_res_cst_dt[y_block == 2050,]
 ccl_res_2050_dt  = ccl_res_2050_dt[, ..k_cols]
 ccl_res_2050_gcm = ccl_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_res_2050_gcm[, scenario := 'ccl-res']
 # potential | 2050
 ccl_res_2050_gl  = global_mean_CI(ccl_res_2050_gcm, '2050')
 ccl_res_2050_gl[, scenario := 'ccl-res']
@@ -279,6 +292,7 @@ ccl_res_2050_gl[, scenario := 'ccl-res']
 ccl_res_2030_dt  = ccl_res_cst_dt[y_block == 2030,]
 ccl_res_2030_dt  = ccl_res_2030_dt[, ..k_cols]
 ccl_res_2030_gcm = ccl_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_res_2030_gcm[, scenario := 'ccl-res']
 # potential | 2030
 ccl_res_2030_gl  = global_mean_CI(ccl_res_2030_gcm, '2030')
 ccl_res_2030_gl[, scenario := 'ccl-res']
@@ -290,6 +304,7 @@ ccg_ntill_cst_dt = ccg_ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_ntill_2050_dt  = ccg_ntill_cst_dt[y_block == 2050,]
 ccg_ntill_2050_dt  = ccg_ntill_2050_dt[, ..k_cols]
 ccg_ntill_2050_gcm = ccg_ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_ntill_2050_gcm[, scenario := 'ccg-ntill']
 # potential | 2050
 ccg_ntill_2050_gl  = global_mean_CI(ccg_ntill_2050_gcm, '2050')
 ccg_ntill_2050_gl[, scenario := 'ccg-ntill']
@@ -298,6 +313,7 @@ ccg_ntill_2050_gl[, scenario := 'ccg-ntill']
 ccg_ntill_2030_dt  = ccg_ntill_cst_dt[y_block == 2030,]
 ccg_ntill_2030_dt  = ccg_ntill_2030_dt[, ..k_cols]
 ccg_ntill_2030_gcm = ccg_ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccg_ntill_2030_gcm[, scenario := 'ccg-ntill']
 # potential | 2030
 ccg_ntill_2030_gl  = global_mean_CI(ccg_ntill_2030_gcm, '2030')
 ccg_ntill_2030_gl[, scenario := 'ccg-ntill']
@@ -309,6 +325,7 @@ ccl_ntill_cst_dt = ccl_ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_ntill_2050_dt  = ccl_ntill_cst_dt[y_block == 2050,]
 ccl_ntill_2050_dt  = ccl_ntill_2050_dt[, ..k_cols]
 ccl_ntill_2050_gcm = ccl_ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_ntill_2050_gcm[, scenario := 'ccl-ntill']
 # potential | 2050
 ccl_ntill_2050_gl  = global_mean_CI(ccl_ntill_2050_gcm, '2050')
 ccl_ntill_2050_gl[, scenario := 'ccl-ntill']
@@ -317,25 +334,40 @@ ccl_ntill_2050_gl[, scenario := 'ccl-ntill']
 ccl_ntill_2030_dt  = ccl_ntill_cst_dt[y_block == 2030,]
 ccl_ntill_2030_dt  = ccl_ntill_2030_dt[, ..k_cols]
 ccl_ntill_2030_gcm = ccl_ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block)]
+ccl_ntill_2030_gcm[, scenario := 'ccl-ntill']
 # potential | 2030
 ccl_ntill_2030_gl  = global_mean_CI(ccl_ntill_2030_gcm, '2030')
 ccl_ntill_2030_gl[, scenario := 'ccl-ntill']
 
-# COMBINE & SAVE DT
+# COMBINE & SAVE DT | ENSEMBLE
 # 2030
-biophys_2030 = rbind(residue_2030_gl, ntill_2030_gl, ntill_res_2030_gl,
+unconstr_2030 = rbind(residue_2030_gl, ntill_2030_gl, ntill_res_2030_gl,
                        ccg_2030_gl, ccg_res_2030_gl, ccl_2030_gl, ccl_res_2030_gl,
                        ccg_ntill_2030_gl, ccl_ntill_2030_gl)
-setcolorder(biophys_2030, c('ssp', 'y_block', 'scenario'))
-fwrite(biophys_2030, file = paste(data.path, 'global-biophysical-GHG-mitigation-potential-2030.csv', sep = '/'))
+setcolorder(unconstr_2030, c('ssp', 'y_block', 'scenario'))
+fwrite(unconstr_2030, file = paste(data.path, 'global-unconstrained-GHG-mitigation-potential-2030.csv', sep = '/'))
 # 2050
-biophys_2050 = rbind(residue_2050_gl, ntill_2050_gl, ntill_res_2050_gl,
+unconstr_2050 = rbind(residue_2050_gl, ntill_2050_gl, ntill_res_2050_gl,
                        ccg_2050_gl, ccg_res_2050_gl, ccl_2050_gl, ccl_res_2050_gl,
                        ccg_ntill_2050_gl, ccl_ntill_2050_gl)
-setcolorder(biophys_2050, c('ssp', 'y_block', 'scenario'))
-fwrite(biophys_2050, file = paste(data.path, 'global-biophysical-GHG-mitigation-potential-2050.csv', sep = '/'))
+setcolorder(unconstr_2050, c('ssp', 'y_block', 'scenario'))
+fwrite(unconstr_2050, file = paste(data.path, 'global-unconstrained-GHG-mitigation-potential-2050.csv', sep = '/'))
+
+# COMBINE & SAVE DT | GCM
+# 2030
+unconstr_gcm_2030 = rbind(residue_2030_gcm, ntill_2030_gcm, ntill_res_2030_gcm,
+                     ccg_2030_gcm, ccg_res_2030_gcm, ccl_2030_gcm, ccl_res_2030_gcm,
+                     ccg_ntill_2030_gcm, ccl_ntill_2030_gcm)
+setcolorder(unconstr_gcm_2030, c('ssp', 'y_block', 'scenario'))
+fwrite(unconstr_2030, file = paste(data.path, 'global-unconstrained-GHG-mitigation-potential-gcm-2030.csv', sep = '/'))
+# 2050
+unconstr_gcm_2050 = rbind(residue_2050_gcm, ntill_2050_gcm, ntill_res_2050_gcm,
+                     ccg_2050_gcm, ccg_res_2050_gcm, ccl_2050_gcm, ccl_res_2050_gcm,
+                     ccg_ntill_2050_gcm, ccl_ntill_2050_gcm)
+setcolorder(unconstr_gcm_2050, c('ssp', 'y_block', 'scenario'))
+fwrite(unconstr_gcm_2050, file = paste(data.path, 'global-unconstrained-GHG-mitigation-potential-gcm-2050.csv', sep = '/'))
 #-------------------------------------------------------------------------------
-# BIOPHYSICAL MITIGATION POTENTIAL | REGION
+# UNCONSTRAINED MITIGATION POTENTIAL | REGION
 #-------------------------------------------------------------------------------
 k_cols = c('cell','ssp', 'gcm','IPCC_NAME','y_block','total_crop_area_ha','GHG_area', 'GRAIN_area')
 # RESIDUE
@@ -345,6 +377,7 @@ residue_cst_dt = residue_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 residue_2050_dt    = residue_cst_dt[y_block == 2050,]
 residue_2050_dt    = residue_2050_dt[, ..k_cols]
 residue_2050_r_gcm = residue_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+residue_2050_r_gcm[, scenario := 'res']
 # potential | 2050
 residue_2050_rg    = regional_mean_CI(residue_2050_r_gcm, '2050')
 residue_2050_rg[, scenario := 'res']
@@ -353,6 +386,7 @@ residue_2050_rg[, scenario := 'res']
 residue_2030_dt    = residue_cst_dt[y_block == 2030,]
 residue_2030_dt    = residue_2030_dt[, ..k_cols]
 residue_2030_r_gcm = residue_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+residue_2030_r_gcm[, scenario := 'res']
 # potential | 2030
 residue_2030_rg    = regional_mean_CI(residue_2030_r_gcm, '2030')
 residue_2030_rg[, scenario := 'res']
@@ -364,6 +398,7 @@ ntill_cst_dt = ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ntill_2050_dt    = ntill_cst_dt[y_block == 2050,]
 ntill_2050_dt    = ntill_2050_dt[, ..k_cols]
 ntill_2050_r_gcm = ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ntill_2050_r_gcm[, scenario := 'ntill']
 # potential | 2050
 ntill_2050_rg    = regional_mean_CI(ntill_2050_r_gcm, '2050')
 ntill_2050_rg[, scenario := 'ntill']
@@ -372,6 +407,7 @@ ntill_2050_rg[, scenario := 'ntill']
 ntill_2030_dt    = ntill_cst_dt[y_block == 2030,]
 ntill_2030_dt    = ntill_2030_dt[, ..k_cols]
 ntill_2030_r_gcm = ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ntill_2030_r_gcm[, scenario := 'ntill']
 # potential | 2030
 ntill_2030_rg    = regional_mean_CI(ntill_2030_r_gcm, '2030')
 ntill_2030_rg[, scenario := 'ntill']
@@ -383,6 +419,7 @@ ntill_res_cst_dt = ntill_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ntill_res_2050_dt    = ntill_res_cst_dt[y_block == 2050,]
 ntill_res_2050_dt    = ntill_res_2050_dt[, ..k_cols]
 ntill_res_2050_r_gcm = ntill_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ntill_res_2050_r_gcm[, scenario := 'ntill-res']
 # potential | 2050
 ntill_res_2050_rg  = regional_mean_CI(ntill_res_2050_r_gcm, '2050')
 ntill_res_2050_rg[, scenario := 'ntill-res']
@@ -391,6 +428,7 @@ ntill_res_2050_rg[, scenario := 'ntill-res']
 ntill_res_2030_dt    = ntill_res_cst_dt[y_block == 2030,]
 ntill_res_2030_dt    = ntill_res_2030_dt[, ..k_cols]
 ntill_res_2030_r_gcm = ntill_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ntill_res_2030_r_gcm[, scenario := 'ntill-res']
 # potential | 2030
 ntill_res_2030_rg    = regional_mean_CI(ntill_res_2030_r_gcm, '2030')
 ntill_res_2030_rg[, scenario := 'ntill-res']
@@ -402,6 +440,7 @@ ccg_cst_dt = ccg_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_2050_dt    = ccg_cst_dt[y_block == 2050,]
 ccg_2050_dt    = ccg_2050_dt[, ..k_cols]
 ccg_2050_r_gcm = ccg_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_2050_r_gcm[, scenario := 'ccg']
 # potential | 2050
 ccg_2050_rg    = regional_mean_CI(ccg_2050_r_gcm, '2050')
 ccg_2050_rg[, scenario := 'ccg']
@@ -410,6 +449,7 @@ ccg_2050_rg[, scenario := 'ccg']
 ccg_2030_dt    = ccg_cst_dt[y_block == 2030,]
 ccg_2030_dt    = ccg_2030_dt[, ..k_cols]
 ccg_2030_r_gcm = ccg_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_2030_r_gcm[, scenario := 'ccg']
 # potential | 2030
 ccg_2030_rg    = regional_mean_CI(ccg_2030_r_gcm, '2030')
 ccg_2030_rg[, scenario := 'ccg']
@@ -421,6 +461,7 @@ ccg_res_cst_dt = ccg_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_res_2050_dt    = ccg_res_cst_dt[y_block == 2050,]
 ccg_res_2050_dt    = ccg_res_2050_dt[, ..k_cols]
 ccg_res_2050_r_gcm = ccg_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_res_2050_r_gcm[, scenario := 'ccg-res']
 # potential | 2050
 ccg_res_2050_rg  = regional_mean_CI(ccg_res_2050_r_gcm, '2050')
 ccg_res_2050_rg[, scenario := 'ccg-res']
@@ -429,6 +470,7 @@ ccg_res_2050_rg[, scenario := 'ccg-res']
 ccg_res_2030_dt    = ccg_res_cst_dt[y_block == 2030,]
 ccg_res_2030_dt    = ccg_res_2030_dt[, ..k_cols]
 ccg_res_2030_r_gcm = ccg_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_res_2030_r_gcm[, scenario := 'ccg-res']
 # potential | 2030
 ccg_res_2030_rg    = regional_mean_CI(ccg_res_2030_r_gcm, '2030')
 ccg_res_2030_rg[, scenario := 'ccg-res']
@@ -440,6 +482,7 @@ ccl_cst_dt = ccl_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_2050_dt    = ccl_cst_dt[y_block == 2050,]
 ccl_2050_dt    = ccl_2050_dt[, ..k_cols]
 ccl_2050_r_gcm = ccl_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_2050_r_gcm[, scenario := 'ccl']
 # potential | 2050
 ccl_2050_rg    = regional_mean_CI(ccl_2050_r_gcm, '2050')
 ccl_2050_rg[, scenario := 'ccl']
@@ -448,6 +491,7 @@ ccl_2050_rg[, scenario := 'ccl']
 ccl_2030_dt    = ccl_cst_dt[y_block == 2030,]
 ccl_2030_dt    = ccl_2030_dt[, ..k_cols]
 ccl_2030_r_gcm = ccl_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_2030_r_gcm[, scenario := 'ccl']
 # potential | 2030
 ccl_2030_rg    = regional_mean_CI(ccl_2030_r_gcm, '2030')
 ccl_2030_rg[, scenario := 'ccl']
@@ -459,6 +503,7 @@ ccl_res_cst_dt = ccl_res_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_res_2050_dt    = ccl_res_cst_dt[y_block == 2050,]
 ccl_res_2050_dt    = ccl_res_2050_dt[, ..k_cols]
 ccl_res_2050_r_gcm = ccl_res_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_res_2050_r_gcm[, scenario := 'ccl-res']
 # potential | 2050
 ccl_res_2050_rg  = regional_mean_CI(ccl_res_2050_r_gcm, '2050')
 ccl_res_2050_rg[, scenario := 'ccl-res']
@@ -467,6 +512,7 @@ ccl_res_2050_rg[, scenario := 'ccl-res']
 ccl_res_2030_dt    = ccl_res_cst_dt[y_block == 2030,]
 ccl_res_2030_dt    = ccl_res_2030_dt[, ..k_cols]
 ccl_res_2030_r_gcm = ccl_res_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_res_2030_r_gcm[, scenario := 'ccl-res']
 # potential | 2030
 ccl_res_2030_rg    = regional_mean_CI(ccl_res_2030_r_gcm, '2030')
 ccl_res_2030_rg[, scenario := 'ccl-res']
@@ -478,6 +524,7 @@ ccg_ntill_cst_dt = ccg_ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccg_ntill_2050_dt    = ccg_ntill_cst_dt[y_block == 2050,]
 ccg_ntill_2050_dt    = ccg_ntill_2050_dt[, ..k_cols]
 ccg_ntill_2050_r_gcm = ccg_ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_ntill_2050_r_gcm[, scenario := 'ccg-ntill']
 # potential | 2050
 ccg_ntill_2050_rg  = regional_mean_CI(ccg_ntill_2050_r_gcm, '2050')
 ccg_ntill_2050_rg[, scenario := 'ccg-ntill']
@@ -486,6 +533,7 @@ ccg_ntill_2050_rg[, scenario := 'ccg-ntill']
 ccg_ntill_2030_dt    = ccg_ntill_cst_dt[y_block == 2030,]
 ccg_ntill_2030_dt    = ccg_ntill_2030_dt[, ..k_cols]
 ccg_ntill_2030_r_gcm = ccg_ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccg_ntill_2030_r_gcm[, scenario := 'ccg-ntill']
 # potential | 2030
 ccg_ntill_2030_rg    = regional_mean_CI(ccg_ntill_2030_r_gcm, '2030')
 ccg_ntill_2030_rg[, scenario := 'ccg-ntill']
@@ -497,6 +545,7 @@ ccl_ntill_cst_dt = ccl_ntill_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
 ccl_ntill_2050_dt    = ccl_ntill_cst_dt[y_block == 2050,]
 ccl_ntill_2050_dt    = ccl_ntill_2050_dt[, ..k_cols]
 ccl_ntill_2050_r_gcm = ccl_ntill_2050_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_ntill_2050_r_gcm[, scenario := 'ccl-ntill']
 # potential | 2050
 ccl_ntill_2050_rg  = regional_mean_CI(ccl_ntill_2050_r_gcm, '2050')
 ccl_ntill_2050_rg[, scenario := 'ccl-ntill']
@@ -505,20 +554,35 @@ ccl_ntill_2050_rg[, scenario := 'ccl-ntill']
 ccl_ntill_2030_dt    = ccl_ntill_cst_dt[y_block == 2030,]
 ccl_ntill_2030_dt    = ccl_ntill_2030_dt[, ..k_cols]
 ccl_ntill_2030_r_gcm = ccl_ntill_2030_dt[, lapply(.SD, sum), .SDcols = c('GHG_area','GRAIN_area','total_crop_area_ha'), by = .(ssp, gcm, y_block, IPCC_NAME)]
+ccl_ntill_2030_r_gcm[, scenario := 'ccl-ntill']
 # potential | 2030
 ccl_ntill_2030_rg    = regional_mean_CI(ccl_ntill_2030_r_gcm, '2030')
 ccl_ntill_2030_rg[, scenario := 'ccl-ntill']
 
-# COMBINE & SAVE DT
+# COMBINE & SAVE DT | ENSEMBLE
 # 2030
-ipcc_biophys_2030 = rbind(residue_2030_rg, ntill_2030_rg, ntill_res_2030_rg,
+ipcc_unconstr_2030 = rbind(residue_2030_rg, ntill_2030_rg, ntill_res_2030_rg,
                             ccg_2030_rg, ccg_res_2030_rg, ccl_2030_rg, ccl_res_2030_rg,
                             ccg_ntill_2030_rg, ccl_ntill_2030_rg)
-setcolorder(ipcc_biophys_2030, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
-fwrite(ipcc_biophys_2030, file = paste(data.path, 'regional-biophysical-GHG-mitigation-potential-2030.csv', sep = '/'))
+setcolorder(ipcc_unconstr_2030, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
+fwrite(ipcc_unconstr_2030, file = paste(data.path, 'regional-unconstrained-GHG-mitigation-potential-2030.csv', sep = '/'))
 # 2050
-ipcc_biophys_2050 = rbind(residue_2050_rg, ntill_2050_rg, ntill_res_2050_rg,
+ipcc_unconstr_2050 = rbind(residue_2050_rg, ntill_2050_rg, ntill_res_2050_rg,
                             ccg_2050_rg, ccg_res_2050_rg, ccl_2050_rg, ccl_res_2050_rg,
                             ccg_ntill_2050_rg, ccl_ntill_2050_rg)
-setcolorder(ipcc_biophys_2050, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
-fwrite(ipcc_biophys_2050, file = paste(data.path, 'regional-biophysical-GHG-mitigation-potential-2050.csv', sep = '/'))
+setcolorder(ipcc_unconstr_2050, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
+fwrite(ipcc_unconstr_2050, file = paste(data.path, 'regional-unconstrained-GHG-mitigation-potential-2050.csv', sep = '/'))
+
+# COMBINE & SAVE DT | GCM
+# 2030
+ipcc_unconstr_gcm_2030 = rbind(residue_2030_r_gcm, ntill_2030_r_gcm, ntill_res_2030_r_gcm,
+                           ccg_2030_r_gcm, ccg_res_2030_r_gcm, ccl_2030_r_gcm, ccl_res_2030_r_gcm,
+                           ccg_ntill_2030_r_gcm, ccl_ntill_2030_r_gcm)
+setcolorder(ipcc_unconstr_gcm_2030, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
+fwrite(ipcc_unconstr_gcm_2030, file = paste(data.path, 'regional-unconstrained-GHG-mitigation-potential-gcm-2030.csv', sep = '/'))
+# 2050
+ipcc_unconstr_gcm_2050 = rbind(residue_2050_r_gcm, ntill_2050_r_gcm, ntill_res_2050_r_gcm,
+                           ccg_2050_r_gcm, ccg_res_2050_r_gcm, ccl_2050_r_gcm, ccl_res_2050_r_gcm,
+                           ccg_ntill_2050_r_gcm, ccl_ntill_2050_r_gcm)
+setcolorder(ipcc_unconstr_gcm_2050, c('IPCC_NAME','ssp', 'y_block', 'scenario'))
+fwrite(ipcc_unconstr_gcm_2050, file = paste(data.path, 'regional-unconstrained-GHG-mitigation-potential-gcm-2050.csv', sep = '/'))
