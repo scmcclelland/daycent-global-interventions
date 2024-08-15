@@ -8,4 +8,6 @@ Files starting with "figures_" are figure files.
 
 Please find refer to data files at the Zenodo repository.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13327482.svg)](https://doi.org/10.5281/zenodo.13327482)
+
 Contact: shelby.mcclelland@nyu.edu
