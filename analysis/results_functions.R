@@ -2,7 +2,7 @@
 
 # file name:    results_functions.R
 # created:      24 July 2023
-# last updated: 28 February 2024
+# last updated: 21 June 2024
 #-----------------------------------------------------------------------------------------
 library(data.table)
 library(sf)
@@ -392,6 +392,152 @@ cell_crop_area_wmean     = function(.base.path, .scenario, .lu_path, .raster,
   
   .dt_crop_area = rbind(maiz_rn, soyb_rn, wht_rn, maiz_ir, soyb_ir, wht_ir)
   rm(rds_dt_r_s_ens)
+  gc()
+  
+  # ROUND area
+  .dt_crop_area[, crop_area_ha       := round(crop_area_ha, digits = 2)]
+  .dt_crop_area[, cell_total_area_ha := round(cell_area, digits = 2)]
+  setorder(.dt_crop_area, gridid)
+  
+  # FILTER gridid >= 1
+  print(paste0('Number of gridid by crop and irr with equal or more than 1 ha cropland is ', 
+               length(unique(.dt_crop_area[crop_area_ha >= 1, gridid])),
+               '.'))
+  .dt_crop_area = .dt_crop_area[crop_area_ha >= 1,]
+  
+  # FILTER BAD RUN YEARS
+  .dt_crop_area = .dt_crop_area[!crop %in% 'maiz' | !irr == 0 |
+                                  !gridid %in% .bad_run_match$m0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'maiz' | !irr == 1 |
+                                  !gridid %in% .bad_run_match$m1]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'soyb' | !irr == 0 |
+                                  !gridid %in% .bad_run_match$s0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'soyb' | !irr == 1 |
+                                  !gridid %in% .bad_run_match$s1]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'wht'  | !irr == 0 |
+                                  !gridid %in% .bad_run_match$w0]
+  .dt_crop_area = .dt_crop_area[!crop %in% 'wht'  | !irr == 1 |
+                                  !gridid %in% .bad_run_match$w1]
+  print(paste0('Number of 1 ha filtered gridid by crop and irr and good run years is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  # REMOVE KNOWN OUTLIERS
+  .dt_crop_area = .dt_crop_area[!gridid %in% c(103186,164414),]
+  print(paste0('Number of 1 ha filtered gridid by crop and irr, good run years, and known outliers is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  
+  # WEIGHTED mean by crop area in gridid
+  .dt_crop_area[, total_crop_area_ha := sum(crop_area_ha), by = .(y_block, ssp, gcm, gridid, scenario)]
+  .dt_crop_area[, weights            := (crop_area_ha/total_crop_area_ha)*100L]
+  cols_for_mean = c('m_cr_rootC', 'm_cr_shootC', 'm_cr_shootN', 'm_cr_grain', 'm_cr_grainN','m_cr_NPP', 'm_cr_residC', 
+                    'm_cr_residN', 's_cr_rootC', 's_cr_shootC', 's_cr_shootN', 's_cr_grain', 's_cr_grainN','s_cr_NPP',
+                    's_cr_residC',  's_cr_residN', 'm_cc_rootC', 'm_cc_shootC', 'm_cc_shootN','s_cc_rootC', 's_cc_shootC', 
+                    's_cc_shootN', 'm_SOC', 'm_N2O', 'm_iN2O', 'm_dN2O','m_GHG', 'm_annet','m_sfdcmp', 'm_sldcmp',  'm_cr_irr',
+                    'm_sC.N','m_nfix','s_cr_irr', 's_annet','s_SOC', 's_N2O', 's_iN2O', 's_dN2O', 
+                    's_GHG','s_gr_nit', 's_N_leach')
+  print('Compute weighted mean by crop area in gridcell. Note: Calculation takes several minutes.')
+  .dt_crop_area = .dt_crop_area[, lapply(.SD, weighted.mean, weights), .SDcols = cols_for_mean, 
+                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION,total_crop_area_ha, cell_area)]
+  .dt_crop_area = .dt_crop_area[, lapply(.SD, round, digits = 2), .SDcols = cols_for_mean,
+                                by = .(gridid, x, y, scenario, y_block, gcm, ssp, WB_NAME, WB_REGION, total_crop_area_ha, cell_area)]
+  setorder(.dt_crop_area, gridid)
+  
+  .dt_crop_area[, total_crop_area_ha := NULL]
+  .dt_crop_area[, cell_area := NULL]
+  
+  print(paste0('Number of crop area weighted gridid is ', 
+               length(unique(.dt_crop_area[, gridid])),
+               '.'))
+  return(.dt_crop_area)
+}
+cell_crop_area_wmean_abs_conv = function(.base.path, .scenario, .lu_path, .raster,
+                                    .bad_run_match) {
+  keep.cols = c("gridid","x","y","WB_NAME","WB_REGION",    
+                "ssp","crop","irr","scenario","y_block" ,     
+                "gcm","m_cc_rootC","m_cc_shootC","m_cc_shootN","s_cc_rootC",   
+                "s_cc_shootC","s_cc_shootN","m_cr_rootC","m_cr_shootC","m_cr_shootN",  
+                "m_cr_grain","m_cr_grainN","m_cr_NPP","m_cr_residC","m_cr_residN",  
+                "s_cr_rootC","s_cr_shootC","s_cr_shootN","s_cr_grain","s_cr_grainN",  
+                "s_cr_NPP","s_cr_residC","s_cr_residN","m_SOC","m_N2O",        
+                "m_dN2O","m_dN2O_nit","m_dN2O_dnit","m_iN2O","m_iN2O_v",     
+                "m_iN2O_l","m_GHG", "m_gr_nit", "s_SOC",        
+                "s_N2O", "s_dN2O", "s_dN2O_nit",    "s_dN2O_dnit",   "s_iN2O",       
+                "s_iN2O_v", "s_iN2O_l", "s_GHG", "s_gr_nit",     
+                "m_ANNPPT", "m_annet","m_PET_r", "m_sfdcmp","m_sldcmp",     
+                "m_sC.N", "m_fert.N", "m_omad.C", "m_omad.N", "m_nfix",       
+                "m_cr_irr", "s_cr_irr", "s_annet", "s_N_leach")
+  if(!.scenario %like% '-res') {
+    # gcm
+    #first run
+    print('This is not a -res scenario. Loading run 1 dt.')
+    load(paste0(.base.path, '/data/', .scenario,'-ensemble-absolute-responses.Rdata'))
+    rds_dt_ens1 = rds_dt_ens
+    rm(rds_dt_ens)
+    rds_dt_ens1 = rds_dt_ens1[, ..keep.cols]
+    gc()
+    
+    # second run
+    print('This is not a -res scenario. Loading run 2 dt.')
+    load(paste0(.base.path, '/data/', .scenario,'-ensemble-absolute-responses-2.Rdata'))
+    rds_dt_ens = rds_dt_ens[, ..keep.cols]
+    gc()
+    
+    # COMBINE
+    rds_dt_ens = rbind(rds_dt_ens1, rds_dt_ens)
+    rm(rds_dt_ens1)
+    gc()
+    setorder(rds_dt_ens, gridid)
+  } else {
+    print('This is not a valid scenario.')
+    stop()
+  }
+  
+  # CREATE dt
+  crop_area_r           = rast(paste(.lu_path, .raster, sep = '/'))
+  crop_area_r$cell_area = cellSize(crop_area_r, mask=FALSE, lyrs=FALSE, unit="ha")
+  crop_area_dt          = as.data.table(terra::as.data.frame(crop_area_r, xy = TRUE, cells = TRUE))
+  
+  # FILTER raster by relevant gridid
+  gridid_all       = unique(rds_dt_ens[,gridid])
+  print(paste0('Number of gridid in input table is ', 
+               length(gridid_all),
+               '.'))
+  crop_area_dt_f   = crop_area_dt[cell %in% gridid_all,]
+  
+  # ADD relevant crop area by crop / irrigation / gridid
+  wht_rn = rds_dt_ens[crop %in% 'wht' & irr == 0,]
+  wht_rn = wht_rn[crop_area_dt_f[,c('cell','wheat_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  wht_rn = wht_rn[!is.na(x),] 
+  names(wht_rn)[names(wht_rn) == 'wheat_rainfed_2015'] = 'crop_area_ha'
+  
+  maiz_rn = rds_dt_ens[crop %in% 'maiz' & irr == 0,]
+  maiz_rn = maiz_rn[crop_area_dt_f[,c('cell','maize_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  maiz_rn = maiz_rn[!is.na(x),] 
+  names(maiz_rn)[names(maiz_rn) == 'maize_rainfed_2015'] = 'crop_area_ha'
+  
+  soyb_rn = rds_dt_ens[crop %in% 'soyb' & irr == 0,]
+  soyb_rn = soyb_rn[crop_area_dt_f[,c('cell','soybean_rainfed_2015', 'cell_area')], on = .(gridid = cell)]
+  soyb_rn = soyb_rn[!is.na(x),]
+  names(soyb_rn)[names(soyb_rn) == 'soybean_rainfed_2015'] = 'crop_area_ha'
+  
+  wht_ir = rds_dt_ens[crop %in% 'wht' & irr == 1,]
+  wht_ir = wht_ir[crop_area_dt_f[,c('cell','wheat_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  wht_ir = wht_ir[!is.na(x),]
+  names(wht_ir)[names(wht_ir) == 'wheat_irrigated_2015'] = 'crop_area_ha'
+  
+  maiz_ir = rds_dt_ens[crop %in% 'maiz' & irr == 1,]
+  maiz_ir = maiz_ir[crop_area_dt_f[,c('cell','maize_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  maiz_ir = maiz_ir[!is.na(x),]
+  names(maiz_ir)[names(maiz_ir) == 'maize_irrigated_2015'] = 'crop_area_ha'
+  
+  soyb_ir = rds_dt_ens[crop %in% 'soyb' & irr == 1,]
+  soyb_ir = soyb_ir[crop_area_dt_f[,c('cell','soybean_irrigated_2015', 'cell_area')], on = .(gridid = cell)]
+  soyb_ir = soyb_ir[!is.na(x),]
+  names(soyb_ir)[names(soyb_ir) == 'soybean_irrigated_2015'] = 'crop_area_ha'
+  
+  .dt_crop_area = rbind(maiz_rn, soyb_rn, wht_rn, maiz_ir, soyb_ir, wht_ir)
+  rm(rds_dt_ens)
   gc()
   
   # ROUND area
@@ -1268,7 +1414,6 @@ impute_missing_pr_gcm    = function(.dt, .crop_area, gcms, .ssp) {
   }
   return(imp_gcm_dt)
 }
-# convert_biomass_units FUNCTION
 #-----------------------------------------------------------------------------------------
 # ANALYSIS #
 #-----------------------------------------------------------------------------------------
@@ -1281,8 +1426,10 @@ regional_mean_CI      = function(.dt, .year) { # Tg
     period = 15L
   } else if (.year == 2050) {
     period = 35L
+  } else if (.year == 2100) {
+    period = 85L
   } else {
-    print('This is not a valid year for this calculation.')
+    print('This is not a valid year for estimate.')
     stop()
   }
   Mg_to_Tg   = 1000000L
@@ -1310,8 +1457,10 @@ global_mean_CI        = function(.dt, .year) { # Pg
     period = 15L
   } else if (.year == 2050) {
     period = 35L
+  } else if (.year == 2100) {
+    period = 85L
   } else {
-    print('This is not a valid year for this calculation.')
+    print('This is not a valid year for estimate.')
     stop()
   }
   Mg_to_Pg   = 1000000000L
@@ -1565,8 +1714,7 @@ soc_supervised_clustering  = function(ranger_dt) {
   drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION')
   soc_rf_dt   = ranger_dt[, -..drop_ranger]
   # correlated variables
-  # correlationMatrix = cor(soc_rf_dt[,c(1:6,8:29)])
-  correlationMatrix = cor(soc_rf_dt[,c(1:5,7:25)])
+  correlationMatrix = cor(soc_rf_dt[,c(1:6,8:34)])
   highlyCorrelated  = findCorrelation(correlationMatrix, cutoff=0.75, names = TRUE)
   print(highlyCorrelated)
 
@@ -1576,6 +1724,20 @@ soc_supervised_clustering  = function(ranger_dt) {
   soc_rf_dt = soc_rf_dt[s_SOC < quant[[100]],]
   ranger_dt = ranger_dt[s_SOC > quant[[2]],]
   ranger_dt = ranger_dt[s_SOC < quant[[100]],]
+  
+  quant     = quantile(soc_rf_dt[,d_s_N_leach], seq(0,1,.01))
+  print(quant)
+  soc_rf_dt = soc_rf_dt[d_s_N_leach > quant[[2]],]
+  soc_rf_dt = soc_rf_dt[d_s_N_leach < quant[[100]],]
+  ranger_dt = ranger_dt[d_s_N_leach > quant[[2]],]
+  ranger_dt = ranger_dt[d_s_N_leach < quant[[100]],]
+  
+  quant     = quantile(soc_rf_dt[,s_N_leach], seq(0,1,.01))
+  print(quant)
+  soc_rf_dt = soc_rf_dt[s_N_leach > quant[[2]],]
+  soc_rf_dt = soc_rf_dt[s_N_leach < quant[[100]],]
+  ranger_dt = ranger_dt[s_N_leach > quant[[2]],]
+  ranger_dt = ranger_dt[s_N_leach < quant[[100]],]
   
   #soc RF and SHAP
   print('Running ranger.')
@@ -1631,6 +1793,198 @@ soc_supervised_clustering  = function(ranger_dt) {
                        cor            = correlationMatrix,
                        cor_col        = highlyCorrelated)
   return(soc_SHAP_list)
+}
+yield_noCC_supervised_clustering  = function(ranger_dt) {
+  # drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION', 's_cr_grain')
+  drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION')
+  yield_rf_dt   = ranger_dt[, -..drop_ranger]
+  # correlated variables
+  # correlationMatrix = cor(yield_rf_dt[,c(1:9,11:31)])
+  correlationMatrix = cor(yield_rf_dt[,c(2:23)])
+  highlyCorrelated  = findCorrelation(correlationMatrix, cutoff=0.75, names = TRUE)
+  print(highlyCorrelated)
+  
+  # quant     = quantile(yield_rf_dt[,d_s_cr_grain], seq(0,1,.01))
+  quant     = quantile(yield_rf_dt[,s_cr_grain], seq(0,1,.01))
+  print(quant)
+  # yield_rf_dt = yield_rf_dt[d_s_cr_grain > quant[[2]],]
+  # yield_rf_dt = yield_rf_dt[d_s_cr_grain < quant[[100]],]
+  # ranger_dt = ranger_dt[d_s_cr_grain > quant[[2]],]
+  # ranger_dt = ranger_dt[d_s_cr_grain < quant[[100]],]
+  yield_rf_dt = yield_rf_dt[s_cr_grain > quant[[2]],]
+  yield_rf_dt = yield_rf_dt[s_cr_grain < quant[[100]],]
+  ranger_dt = ranger_dt[s_cr_grain > quant[[2]],]
+  ranger_dt = ranger_dt[s_cr_grain < quant[[100]],]
+  
+  # quant     = quantile(yield_rf_dt[,d_s_N_leach], seq(0,1,.01))
+  # print(quant)
+  # yield_rf_dt = yield_rf_dt[d_s_N_leach > quant[[2]],]
+  # yield_rf_dt = yield_rf_dt[d_s_N_leach < quant[[100]],]
+  # ranger_dt = ranger_dt[d_s_N_leach > quant[[2]],]
+  # ranger_dt = ranger_dt[d_s_N_leach < quant[[100]],]
+  
+  quant     = quantile(yield_rf_dt[,s_N_leach], seq(0,1,.01))
+  print(quant)
+  yield_rf_dt = yield_rf_dt[s_N_leach > quant[[2]],]
+  yield_rf_dt = yield_rf_dt[s_N_leach < quant[[100]],]
+  ranger_dt = ranger_dt[s_N_leach > quant[[2]],]
+  ranger_dt = ranger_dt[s_N_leach < quant[[100]],]
+  
+  #yield RF and SHAP
+  print('Running ranger.')
+  # yield_ranger       = ranger(dependent.variable.name = 'd_s_cr_grain', data = yield_rf_dt,
+  #                           importance = 'permutation', keep.inbag = TRUE, seed = 1234)
+  # yield_ranger
+  
+  yield_ranger       = ranger(dependent.variable.name = 's_cr_grain', data = yield_rf_dt,
+                              importance = 'permutation', keep.inbag = TRUE, seed = 1234)
+  yield_ranger
+  
+  # yield_features = yield_rf_dt[, -c('d_s_cr_grain')]
+  yield_features = yield_rf_dt[, -c('s_cr_grain')]
+  # SHAP COMPUTATION - N.B. TAKES A LONG TIME
+  print('Computing SHAP')
+  yield_SHAP       = explain(yield_ranger, X = yield_features, pred_wrapper = pred_fun, nsim = 10, adjust = TRUE,
+                           shap_only = FALSE)
+  shv.yield_gl     = shapviz(yield_SHAP)
+  # initial visualization
+  yield_SHAP_gl_gg = sv_importance(shv.yield_gl)
+  yield_SHAP_be_gg = sv_importance(shv.yield_gl, kind = "beeswarm", show_numbers = FALSE, bee_width = 0.2)
+  # save dt
+  yield_SHAP_features = setDT(yield_SHAP$feature_values)
+  yield_SHAP_features[, gridid := ranger_dt[,gridid]]
+  yield_SHAP_features[, x := ranger_dt[,x]]
+  yield_SHAP_features[, y := ranger_dt[,y]]
+  yield_SHAP_features[, ssp := ranger_dt[,ssp]]
+  yield_SHAP_values   = setDT(as.data.frame(yield_SHAP$shapley_values))
+  yield_SHAP_values[, gridid := ranger_dt[,gridid]]
+  yield_SHAP_values[, x := ranger_dt[,x]]
+  yield_SHAP_values[, y := ranger_dt[,y]]
+  yield_SHAP_values[, ssp := ranger_dt[,ssp]]
+  
+  # umap (2D reduction) of SHAP
+  print('Computing UMAP')
+  shap_yield_2d       = umap(yield_SHAP$shapley_values)
+  # kmeans on SHAP 2D reduction
+  # Compute and plot wss for k = 1 to k = 15
+  k.values = 1:15
+  print('Finding optimal k clusters.')
+  wss_values = purrr::map_dbl(k.values, wss, shap_yield_2d$layout)
+  plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE,
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+  yield_clusters = recordPlot()
+  
+  yield_SHAP_list = list(ranger       = yield_ranger, reduced_ranger_dt = yield_rf_dt,
+                       full_ranger_dt = ranger_dt,
+                       gl_gg          = yield_SHAP_gl_gg, 
+                       bee_gg         = yield_SHAP_be_gg,
+                       viz            = shv.yield_gl,
+                       features       = yield_SHAP_features,
+                       values         = yield_SHAP_values, 
+                       clusters       = yield_clusters,
+                       SHAP           = yield_SHAP, 
+                       UMAP           = shap_yield_2d,
+                       cor            = correlationMatrix,
+                       cor_col        = highlyCorrelated)
+  return(yield_SHAP_list)
+}
+yield_CC_supervised_clustering  = function(ranger_dt) {
+  # drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION', 's_cr_grain')
+  drop_ranger   = c('gridid', 'x', 'y', 'scenario', 'y_block', 'gcm', 'ssp', 'WB_NAME', 'WB_REGION')
+  yield_rf_dt   = ranger_dt[, -..drop_ranger]
+  # correlated variables
+  # correlationMatrix = cor(yield_rf_dt[,c(1:9,11:31)])
+  correlationMatrix = cor(yield_rf_dt[,c(2:24)])
+  highlyCorrelated  = findCorrelation(correlationMatrix, cutoff=0.75, names = TRUE)
+  print(highlyCorrelated)
+  
+  # quant     = quantile(yield_rf_dt[,d_s_cr_grain], seq(0,1,.01))
+  quant     = quantile(yield_rf_dt[,s_cr_grain], seq(0,1,.01))
+  print(quant)
+  # yield_rf_dt = yield_rf_dt[d_s_cr_grain > quant[[2]],]
+  # yield_rf_dt = yield_rf_dt[d_s_cr_grain < quant[[100]],]
+  # ranger_dt = ranger_dt[d_s_cr_grain > quant[[2]],]
+  # ranger_dt = ranger_dt[d_s_cr_grain < quant[[100]],]
+  yield_rf_dt = yield_rf_dt[s_cr_grain > quant[[2]],]
+  yield_rf_dt = yield_rf_dt[s_cr_grain < quant[[100]],]
+  ranger_dt = ranger_dt[s_cr_grain > quant[[2]],]
+  ranger_dt = ranger_dt[s_cr_grain < quant[[100]],]
+  
+  # quant     = quantile(yield_rf_dt[,d_s_N_leach], seq(0,1,.01))
+  # print(quant)
+  # yield_rf_dt = yield_rf_dt[d_s_N_leach > quant[[2]],]
+  # yield_rf_dt = yield_rf_dt[d_s_N_leach < quant[[100]],]
+  # ranger_dt = ranger_dt[d_s_N_leach > quant[[2]],]
+  # ranger_dt = ranger_dt[d_s_N_leach < quant[[100]],]
+  
+  quant     = quantile(yield_rf_dt[,s_N_leach], seq(0,1,.01))
+  print(quant)
+  yield_rf_dt = yield_rf_dt[s_N_leach > quant[[2]],]
+  yield_rf_dt = yield_rf_dt[s_N_leach < quant[[100]],]
+  ranger_dt = ranger_dt[s_N_leach > quant[[2]],]
+  ranger_dt = ranger_dt[s_N_leach < quant[[100]],]
+  
+  #yield RF and SHAP
+  print('Running ranger.')
+  # yield_ranger       = ranger(dependent.variable.name = 'd_s_cr_grain', data = yield_rf_dt,
+  #                           importance = 'permutation', keep.inbag = TRUE, seed = 1234)
+  # yield_ranger
+  
+  yield_ranger       = ranger(dependent.variable.name = 's_cr_grain', data = yield_rf_dt,
+                              importance = 'permutation', keep.inbag = TRUE, seed = 1234)
+  yield_ranger
+  
+  # yield_features = yield_rf_dt[, -c('d_s_cr_grain')]
+  yield_features = yield_rf_dt[, -c('s_cr_grain')]
+  # SHAP COMPUTATION - N.B. TAKES A LONG TIME
+  print('Computing SHAP')
+  yield_SHAP       = explain(yield_ranger, X = yield_features, pred_wrapper = pred_fun, nsim = 10, adjust = TRUE,
+                             shap_only = FALSE)
+  shv.yield_gl     = shapviz(yield_SHAP)
+  # initial visualization
+  yield_SHAP_gl_gg = sv_importance(shv.yield_gl)
+  yield_SHAP_be_gg = sv_importance(shv.yield_gl, kind = "beeswarm", show_numbers = FALSE, bee_width = 0.2)
+  # save dt
+  yield_SHAP_features = setDT(yield_SHAP$feature_values)
+  yield_SHAP_features[, gridid := ranger_dt[,gridid]]
+  yield_SHAP_features[, x := ranger_dt[,x]]
+  yield_SHAP_features[, y := ranger_dt[,y]]
+  yield_SHAP_features[, ssp := ranger_dt[,ssp]]
+  yield_SHAP_values   = setDT(as.data.frame(yield_SHAP$shapley_values))
+  yield_SHAP_values[, gridid := ranger_dt[,gridid]]
+  yield_SHAP_values[, x := ranger_dt[,x]]
+  yield_SHAP_values[, y := ranger_dt[,y]]
+  yield_SHAP_values[, ssp := ranger_dt[,ssp]]
+  
+  # umap (2D reduction) of SHAP
+  print('Computing UMAP')
+  shap_yield_2d       = umap(yield_SHAP$shapley_values)
+  # kmeans on SHAP 2D reduction
+  # Compute and plot wss for k = 1 to k = 15
+  k.values = 1:15
+  print('Finding optimal k clusters.')
+  wss_values = purrr::map_dbl(k.values, wss, shap_yield_2d$layout)
+  plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE,
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+  yield_clusters = recordPlot()
+  
+  yield_SHAP_list = list(ranger       = yield_ranger, reduced_ranger_dt = yield_rf_dt,
+                         full_ranger_dt = ranger_dt,
+                         gl_gg          = yield_SHAP_gl_gg, 
+                         bee_gg         = yield_SHAP_be_gg,
+                         viz            = shv.yield_gl,
+                         features       = yield_SHAP_features,
+                         values         = yield_SHAP_values, 
+                         clusters       = yield_clusters,
+                         SHAP           = yield_SHAP, 
+                         UMAP           = shap_yield_2d,
+                         cor            = correlationMatrix,
+                         cor_col        = highlyCorrelated)
+  return(yield_SHAP_list)
 }
 optimal_k = function(umap_val, k_val, full_ranger_dt, reduced_ranger_dt) {
   k          = k_val # optimal clusters
@@ -1743,7 +2097,7 @@ IPCC_map          = function(.lu_path, .shp_f, .raster) {
   map = ggplot() +
     geom_sf() +
     geom_sf(data = country.sf, aes(alpha = 0.9, fill = IPCC_NAME, colour = IPCC_NAME),
-            colour = "grey95", size = 0.2) +
+            colour = "grey95", size = 0.05) +
     theme_map() +
     scale_fill_manual(values = WB_colors, na.value = "grey10") +
     theme(legend.position='none')
@@ -1753,11 +2107,11 @@ IPCC_map          = function(.lu_path, .shp_f, .raster) {
   return(gg_maps)
 }
 gl_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high, .ssp) {
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
-  cols = c('ssp', 'y_block', 'scenario', 'GHG_m', 'GHG_ciL', 'GHG_ciH', 'type')
-  # biophysical table
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
+  cols = c('ssp', 'y_block', 'scenario', 'GHG_m', 'GHG_sd','GHG_ciL', 'GHG_ciH', 'type')
+  # biophysical / full adoption table
   .dt_biophys   = .dt_biophys[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_biophys$scenario = factor(.dt_biophys$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_biophys[, type := 'biophysical']
@@ -1787,22 +2141,23 @@ gl_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_hi
   plot_ghg = ggplot(data = .dt[ssp %in% .ssp], aes(x = scenario, 
                                                    y = abs(GHG_m), group = fct_reorder(type, abs(GHG_m)), fill = type)) +
     geom_bar(stat = 'identity', position=position_dodge(), width = 0.8) +
-    geom_errorbar(aes(ymin=abs(GHG_ciL), ymax=abs(GHG_ciH)), width=.4, position=position_dodge(0.8)) +
+    # geom_errorbar(aes(ymin=abs(GHG_sd), ymax=abs(GHG_sd)), width=.4, position=position_dodge(0.8)) +
+    geom_errorbar(aes(ymin=abs(GHG_m)-GHG_sd, ymax=abs(GHG_m)+GHG_sd), width=.4, position=position_dodge(0.8)) +
     coord_flip() +
     geom_hline(yintercept = 0) +
     scale_x_discrete(labels = scenario_lbl, limits = c('ccg-res','ccl-res', 'ntill-res',
                                                        'ccg-ntill', 'ccl-ntill')) +
     ylab((expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Pg~CO[2]*-eq*~yr^-1*')')))) +
-    scale_y_continuous(limits = c(0,1.5), breaks = seq(0,1.5, 0.25)) +
+    scale_y_continuous(limits = c(0,1.25), breaks = seq(0,1.25, 0.25)) +
     scale_fill_manual(name = "Scenario",
                       limits = c('yield_cst', 'yield_cst_low', 'yield_cst_high', 'biophysical'),
                       values = c("#22A884FF", "#414487FF", "#440154FF", "#FDE725FF")) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 18, color = 'black'),
-          strip.text   = element_text(size = 18, color = 'black'),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
           axis.title.y = element_blank(),
-          axis.title.x = element_text(size = 20),
+          axis.title.x = element_text(size = 7),
           panel.background = element_rect(fill='transparent'), 
           plot.background  = element_rect(fill='transparent', color=NA),
           legend.position  = 'none')
@@ -1811,11 +2166,11 @@ gl_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_hi
   return(ggplots)
 }
 rg_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_high, .ssp, .region) {
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
-  cols = c('ssp', 'y_block', 'scenario', 'IPCC_NAME', 'GHG_m', 'GHG_ciL', 'GHG_ciH', 'type')
-  # biophysical table
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
+  cols = c('ssp', 'y_block', 'scenario', 'IPCC_NAME', 'GHG_m', 'GHG_sd','GHG_ciL', 'GHG_ciH', 'type')
+  # biophysical / full adoption table
   .dt_biophys   = .dt_biophys[scenario %in% c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill')]
   .dt_biophys$scenario = factor(.dt_biophys$scenario, levels = c('ntill-res', 'ccg-res', 'ccg-ntill', 'ccl-res', 'ccl-ntill'))
   .dt_biophys[, type := 'biophysical']
@@ -1845,22 +2200,23 @@ rg_bar_potential  = function(.dt_biophys, .dt_yield, .dt_yield_low, .dt_yield_hi
   plot_ghg = ggplot(data = .dt[ssp %in% .ssp & IPCC_NAME %in% .region], aes(x = scenario, 
                                                    y = abs(GHG_m), group = fct_reorder(type, abs(GHG_m)), fill = type)) +
     geom_bar(stat = 'identity', position=position_dodge(), width = 0.8) +
-    geom_errorbar(aes(ymin=abs(GHG_ciL), ymax=abs(GHG_ciH)), width=.4, position=position_dodge(0.8)) +
+    # geom_errorbar(aes(ymin=abs(GHG_ciL), ymax=abs(GHG_ciH)), width=.4, position=position_dodge(0.8)) +
+    geom_errorbar(aes(ymin=abs(GHG_m)-GHG_sd, ymax=abs(GHG_m)+GHG_sd), width=.4, position=position_dodge(0.8)) +
     coord_flip() +
     geom_hline(yintercept = 0) +
     scale_x_discrete(labels = scenario_lbl, limits = c('ccg-res','ccl-res', 'ntill-res',
                                                        'ccg-ntill', 'ccl-ntill')) +
     ylab((expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Tg~CO[2]*-eq*~yr^-1*')')))) +
-    scale_y_continuous(limits = c(0,500), breaks = seq(0,500, 100)) +
+    scale_y_continuous(limits = c(0,350), breaks = seq(0,350, 50)) +
     scale_fill_manual(name = "Scenario",
                       limits = c('yield_cst', 'yield_cst_low', 'yield_cst_high', 'biophysical'),
                       values = c("#22A884FF", "#414487FF", "#440154FF", "#FDE725FF")) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 18, color = 'black'),
-          strip.text   = element_text(size = 18, color = 'black'),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
           axis.title.y = element_blank(),
-          axis.title.x = element_text(size = 20),
+          axis.title.x = element_text(size = 7),
           panel.background = element_rect(fill='transparent'), 
           plot.background  = element_rect(fill='transparent', color=NA),
           legend.position  = 'none')
@@ -1877,13 +2233,17 @@ annual_map        = function(dt_r, .time, .ssp) {
   require(sf)
   require(terra)
   
+  
   # divide by years
   if (.time == 2050) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   
   # filter dt
@@ -1970,7 +2330,11 @@ annual_map        = function(dt_r, .time, .ssp) {
               '5' = "#E6F5D0", '6' = "#FDE0EF",'7' = "#F1B6DA", '8' = "#DE77AE", '9' = "#C51B7D", '10'= "#8E0152")
   colors2 = c('1' = "#8E0152", '2' = "#C51B7D",'3' = "#DE77AE", '4'= "#F1B6DA", 
               '5' = "#FDE0EF", '6' = "#E6F5D0",'7' = "#B8E186", '8' = "#7FBC41", '9' = "#4D9221", '10'= "#276419")
+  # BBOX
+  # xmin      ymin      xmax      ymax 
+  # -15861702  -6637514  15337601   8373855 
   
+
   # create maps
   gg_GHG = ggplot() + 
     geom_sf(data = wrld_simpl_sf_eckiv, fill = "grey75",
@@ -1980,7 +2344,8 @@ annual_map        = function(dt_r, .time, .ssp) {
               aes(x = x, y = y, fill = s_GHG_2100)) +
     scale_fill_manual(values = colors1) +
     theme(legend.position='none',
-          plot.margin = unit(c(0,0,-1,0), "cm"))
+          plot.margin = unit(c(0,0,0,0), "null"),
+          axis.ticks = element_blank())
   gg_GHG
   
   gg_N2O = ggplot() + 
@@ -2027,13 +2392,13 @@ annual_map        = function(dt_r, .time, .ssp) {
                                   colors = colors_bar1,
                                   legend_title = expression(Soil~GHG~Emissions~Difference~'('~Mg~CO[2]*-eq~ha^-1*~yr^-1*')'),
                                   spacing = 'constant',
-                                  font_size = 7)
+                                  font_size = 5)
   gg_legend1
   gg_legend2 = plot_discrete_cbar(c(-Inf,-750,-500,-250,-100,0,100,250,500,750,Inf),
                                   colors = colors_bar2,
                                   legend_title = expression(Yield~Difference~'('~kg~ha^-1*~yr^-1*')'),
                                   spacing = 'constant',
-                                  font_size = 7)
+                                  font_size = 5)
   gg_legend2
   
   gg_maps = list(N2O = gg_N2O, SOC = gg_SOC, GHG = gg_GHG, Yield = gg_gr, legend1 = gg_legend1, legend2 = gg_legend2)
@@ -2046,21 +2411,23 @@ soc_gl_ha         = function(dt_gcm, .ssp, .time) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   #update scenario names
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
-  
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
   dt_gcm[, y_block := as.factor(y_block)]
   dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
                          'ccg-ntill', 'ccl-ntill')]
 
   bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
                      aes(x = abs(s_SOC/period), y = scenario, fill = scenario)) +
-    geom_density_ridges(bandwidth = 0.015) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
     geom_vline(xintercept = 0) +
     ylab('Scenario') +
     scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
@@ -2069,10 +2436,10 @@ soc_gl_ha         = function(dt_gcm, .ssp, .time) {
     xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
     scale_x_continuous(limits = c(0, 3), breaks = seq(0, 3, 0.5)) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 18, color = 'black'),
-          strip.text   = element_text(size = 18, color = 'black'),
-          axis.title.x = element_text(size = 20),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
           axis.title.y = element_blank(),
           legend.position = 'none')
   
@@ -2085,20 +2452,23 @@ soc_rg_ha         = function(dt_gcm, .ssp, .time) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   #update scenario names
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
   dt_gcm[, y_block := as.factor(y_block)]
   dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
                                   'ccg-ntill', 'ccl-ntill')]
   
   bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
                      aes(x = abs((s_SOC/period)), y = scenario, fill = scenario)) +
-    geom_density_ridges(bandwidth = 0.015) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
     geom_vline(xintercept = 0) +
     facet_wrap(.~IPCC_NAME, nrow = 3, ncol = 2) +
     ylab('Scenario') +
@@ -2108,39 +2478,41 @@ soc_rg_ha         = function(dt_gcm, .ssp, .time) {
     xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
     scale_x_continuous(limits = c(0,3.5), breaks = seq(0, 3.5, 0.5)) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 16, color = 'black'),
-          strip.text   = element_text(size = 16, color = 'black'),
-          axis.title.x = element_text(size = 20),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
           axis.title.y = element_blank(),
           legend.position = 'none')
   
   return(bplot_soc)
 }
-soc_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
-  
+soc_gl_rg_ha      = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
   # divide by years
   if (.time == 2050) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   # combine dt
   dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
   
   #update scenario names
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
   dt_gcm[, y_block := as.factor(y_block)]
   dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
                                   'ccg-ntill', 'ccl-ntill')]
   
   bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
                      aes(x = abs((s_SOC/period)), y = scenario, fill = scenario)) +
-    geom_density_ridges(bandwidth = 0.015) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
     geom_vline(xintercept = 0) +
     facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
                                               'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
@@ -2151,39 +2523,86 @@ soc_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
     xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
     scale_x_continuous(limits = c(0,4.5), breaks = seq(0, 4.5, 0.5)) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 16, color = 'black'),
-          strip.text   = element_text(size = 16, color = 'black'),
-          axis.title.x = element_text(size = 20),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
           axis.title.y = element_blank(),
           legend.position = 'none')
   
   return(bplot_soc)
 }
-ghg_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
-  
+n2o_gl_rg_ha      = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
   # divide by years
   if (.time == 2050) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   # combine dt
   dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
   
   #update scenario names
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_n2o = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = abs((s_N2O/period)), y = scenario, fill = scenario)) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Annual~Soil~N[2]*O~Difference), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(-0.5,1.5), breaks = seq(-0.5, 1.5, 0.25)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_n2o)
+}
+ghg_gl_rg_ha      = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else if (.time == 2100) {
+    period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
   dt_gcm[, y_block := as.factor(y_block)]
   dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
                                   'ccg-ntill', 'ccl-ntill')]
   
   bplot_ghg = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
                      aes(x = abs((s_GHG/period)), y = scenario, fill = scenario)) +
-    geom_density_ridges(bandwidth = 0.015) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
     geom_vline(xintercept = 0) +
     facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
                                               'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
@@ -2192,41 +2611,46 @@ ghg_gl_rg_ha         = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
     scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
                                  'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
     xlab(expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
-    scale_x_continuous(limits = c(0,4.5), breaks = seq(0, 4.5, 0.5)) +
+    scale_x_continuous(limits = c(0,4.25), breaks = seq(0, 4.25, 0.75)) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 16, color = 'black'),
-          strip.text   = element_text(size = 16, color = 'black'),
-          axis.title.x = element_text(size = 20),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
           axis.title.y = element_blank(),
           legend.position = 'none')
   
   return(bplot_ghg)
 }
-grain_gl_rg_ha       = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+
+
+grain_gl_rg_ha    = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
   
   # divide by years
   if (.time == 2050) {
     period = 35L
   } else if (.time == 2030) {
     period = 15L
-  } else {
+  } else if (.time == 2100) {
     period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
   }
   # combine dt
   dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
   
   #update scenario names
-  scenario_lbl = c('ntill-res' = c('No-tillage'), 'ccg-res' = c('Grass CC'),
-                   'ccl-res' = c('Legume CC'), 'ccg-ntill' = c('Grass CC + No-tillage'),
-                   'ccl-ntill' = c('Legume CC + No-tillage'))
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
   dt_gcm[, y_block := as.factor(y_block)]
   dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
                                   'ccg-ntill', 'ccl-ntill')]
   
   bplot_grain = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
                      aes(x = (s_cr_grain/period), y = scenario, fill = scenario)) +
-    geom_density_ridges(bandwidth = 0.015) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
     geom_vline(xintercept = 0) +
     facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
                                               'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
@@ -2235,16 +2659,411 @@ grain_gl_rg_ha       = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
     scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
                                  'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
     xlab(expression(atop(paste(Grain~Yield~Difference), '('*Mg~ha^-1*~yr^-1*')'))) +
-    scale_x_continuous(limits = c(-0.5,1.2), breaks = seq(-0.5, 1.2, 0.25)) +
+    scale_x_continuous(limits = c(-1.0,1.25), breaks = seq(-1.0, 1.25, 0.50)) +
     theme_bw() +
-    theme(text = element_text(color = 'black', size = 20),
-          axis.text    = element_text(size = 16, color = 'black'),
-          strip.text   = element_text(size = 16, color = 'black'),
-          axis.title.x = element_text(size = 20),
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          # axis.text.x  = element_text(angle = 45),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
           axis.title.y = element_blank(),
           legend.position = 'none')
   
   return(bplot_grain)
+}
+SHAP_density      = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cc_biomass := s_cc_biomass / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_cr_residC  := s_cr_residC / 35L]
+  dt[, d_s_cc_biomass := d_s_cc_biomass / 35L]
+  dt[, d_s_cr_grain   := d_s_cr_grain / 35L]
+  dt[, d_s_cr_residC  := d_s_cr_residC / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, d_s_annet    := d_s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, d_s_gr_nit   := d_s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+  dt[, d_s_N_leach  := d_s_N_leach / 35L]
+  
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+SHAP_y_density    = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cc_biomass := s_cc_biomass / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+  
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+SHAP_y_density2    = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+  
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+  
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+SHAP_density_SI   = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cc_biomass := s_cc_biomass / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_cr_residC  := s_cr_residC / 35L]
+  dt[, d_s_cc_biomass := d_s_cc_biomass / 35L]
+  dt[, d_s_cr_grain   := d_s_cr_grain / 35L]
+  dt[, d_s_cr_residC  := d_s_cr_residC / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, d_s_annet    := d_s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, d_s_gr_nit   := d_s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+  dt[, d_s_N_leach  := d_s_N_leach / 35L]
+  
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+  
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, nrow = 4, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+SHAP_y_density_SI = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cc_biomass := s_cc_biomass / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+  
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+  
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, nrow = 4, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+SHAP_y_density_SI2 = function(dt, .ssp, .vars, var_lbl) {
+  # annual response through 2050
+  dt[, s_SOC        := s_SOC / 35L]
+  dt[, s_cr_grain   := s_cr_grain / 35L]
+  dt[, s_annet      := s_annet / 35L]
+  dt[, s_gr_nit     := s_gr_nit / 35L]
+  dt[, s_N_leach    := s_N_leach / 35L]
+  
+  # flip SOC sign
+  dt[, s_SOC := ifelse(s_SOC <= 0, abs(s_SOC), s_SOC * -1L)]
+  
+  dt_p = melt(dt, 
+              id.vars = c('gridid', 'ssp', 'cluster'))
+  
+  cols = c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+           '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  
+  dt_p = dt_p[ssp %in% .ssp & variable %in% .vars]
+  dt_p$variable = factor(dt_p$variable, levels = c(.vars))
+  
+  dens_p = ggplot(dt_p[ssp %in% .ssp & variable %in% .vars,], 
+                  aes(x = value, fill = cluster)) +
+    geom_density(alpha = 0.7, color = NA) +
+    facet_wrap(.~variable, ncol = 2, nrow = 4, scales = 'free', 
+               strip.position = 'bottom',
+               labeller = labeller(variable = var_lbl)) +
+    scale_fill_manual(values = cols, name = 'Cluster') +
+    labs() +
+    guides(fill=guide_legend(title="Group")) +
+    xlab('Value') +
+    ylab('Density') +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          legend.position = 'right')
+  return(dens_p)
+  
+}
+cluster_map       = function(dt_r, .ssp) {
+  require(ggthemes)
+  require(maptools)
+  require(RColorBrewer)
+  require(scales)
+  require(sf)
+  require(terra)
+  
+  # filter dt
+  dt_r = dt_r[ssp %in% .ssp,]
+  dt_r = as.data.frame(dt_r, xy = TRUE)
+  setnames(dt_r, 'gridid', 'cell')
+  setDT(dt_r)
+  dt_r[, cluster := as.numeric(cluster)]
+  
+  # create raster
+  dt_r = as.data.frame(dt_r, xy = TRUE)
+  r                = rast(nrow = 360, ncol = 720, nlyr = 1, xmin = -180, xmax = 180, ymin = -90, ymax = 90)
+  crs(r)           = "epsg:4326"
+  # original projection
+  r_lat_cl = rast(res = 0.5, nlyr = 1, extent = ext(r), crs = crs(r)) 
+  r_lat_cl[[1]][dt_r$cell] = dt_r$cluster
+  names(r_lat_cl) = c('cluster')
+  # equal area projection
+  newcrs = "+proj=eck4 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+  # get new output dimensions
+  project(r_lat_cl, newcrs)
+  # dimensions  : 569, 1138, 3  (nrow, ncol, nlyr)
+  # resolution  : 29727.52, 29727.52  (x, y)
+  # extent      : -16921203, 16908719, -8454359, 8460601  (xmin, xmax, ymin, ymax)
+  r_newcrs   = rast(ncols = 1138, nrows = 569, nlyr = 1, xmin = -16921203, xmax = 16908719, ymin = -8454359, ymax = 8460601, crs = newcrs)
+  r_eckiv    = project(r_lat_cl, r_newcrs)
+  
+  r_eckiv_dt = as.data.frame(r_eckiv, cells = TRUE, xy = TRUE)
+  r_eckiv_dt = setDT(r_eckiv_dt)
+  r_eckiv_dt_cl = r_eckiv_dt[,.(cell, x, y, cluster)]
+  r_eckiv_dt_cl[, cluster := floor(cluster)]
+  r_eckiv_dt_cl[, cluster := as.character(cluster)]
+  
+  # create sf object
+  data(wrld_simpl)
+  wrld_simpl_sf = sf::st_as_sf(wrld_simpl)
+  wrld_simpl_sf_eckiv = st_transform(wrld_simpl_sf, crs = newcrs)
+  wrld_simpl_sf_eckiv = wrld_simpl_sf_eckiv[wrld_simpl_sf_eckiv$NAME != 'Antarctica',]
+  small_islands       = wrld_simpl_sf[wrld_simpl_sf$AREA < 10000,]
+  remove              = c('Antigua and Barbuda', 'American Samoa', 'Barbados', 'Bermuda',
+                          'Bahamas', 'Solomon Islands', 'Cayman Islands', 'Comoros','Cook Islands', 'Cape Verde',
+                          'Dominica', 'Fiji','Falkland Islands (Malvinas)', 'Micronesia, Federated States of', 'Grenada',
+                          'New Caledonia', 'Niue', 'Anguilla','French Polynesia', 'Guam', 'Kiribati', 'Martinique','Maldives', 'Aruba', 'Northern Mariana Islands',
+                          'Faroe Islands', 'Mayotte', 'Mauritius','Aaland Islands', 'Norfolk Island', 'Cocos (Keeling) Islands',
+                          'Bouvet Island', 'French Southern and Antarctic Lands', 'Heard Island and McDonald Islands',
+                          'British Indian Ocean Territory', 'Christmas Island', 'Vanuatu','United States Minor Outlying Islands',
+                          'Nauru', 'Reunion', 'Saint Kitts and Nevis', 'Seychelles', 'Saint Lucia', 'Tokelau', 'Tonga',
+                          'Tuvalu','Saint Vincent and the Grenadines', 'British Virgin Islands', 'United States Virgin Islands',
+                          'Wallis and Futuna Islands', 'Samoa', 'Guadeloupe', 'Netherlands Antilles', 'Pitcairn Islands','
+                          Palau', 'Marshall Islands', 'Saint Pierre and Miquelon', 'Saint Helena', 'San Marino',
+                          'Turks and Caicos Islands', 'Svalbard', 'Saint Martin', 'Saint Barthelemy', 'South Georgia South Sandwich Islands',
+                          'Guernsey', 'Jersey')
+  wrld_simpl_sf_eckiv = wrld_simpl_sf_eckiv[!wrld_simpl_sf_eckiv$NAME %in% remove,]
+  
+  colors =  c('1' = "#FE00FA",  '2' = "#2ED9FF", '3' = "#16FF32" , 
+                    '4' = "#FEAF16",  '5' = "#AA0DFE", '6' = "#1CFFCE")
+  # create maps
+  gg_cl = ggplot() + 
+    geom_sf(data = wrld_simpl_sf_eckiv, fill = "grey75",
+            colour = "grey45", size = 0.2) +
+    theme_map() +
+    geom_tile(data = r_eckiv_dt_cl[,.(cell, x, y, cluster)],
+              aes(x = x, y = y, fill = cluster)) +
+    scale_fill_manual(values = setNames(colors, c('1','2','3','4','5','6')),
+                      name = 'Group') +
+    theme(legend.position='none',
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 7),
+          legend.title.align = 0.5,
+          legend.justification = "center",
+          plot.margin = margin(0, 0, 0, 0, "pt"))
+  gg_cl
+  
+  gg_maps = list(cluster = gg_cl)
+  return(gg_maps)
+}
+feature_p         = function(feature_v, gg_features, gg_values, colors, groups) {
+  dt         = data.table(feature = gg_features, value = gg_values,
+                          type = groups)
+  feature_gg = ggplot(dt, aes(x = value, y = feature, fill = type)) +
+    geom_bar(stat = 'identity') +
+    coord_cartesian(xlim =c(0, 8)) +
+    scale_y_discrete(labels = feature_v) +
+    scale_fill_manual('Feature', values = colors, limits = names(colors), drop = FALSE) +
+    xlab("Mean |SHAP Value|") +
+    theme_bw() +
+    theme(legend.position='bottom',
+          text = element_text(color = 'black', size = 6),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 7),
+          axis.text = element_text(size = 6, color = 'black'),
+          strip.text = element_text(size = 6, color = 'black'))
+  return(feature_gg)
+}
+feature_yield_p   = function(feature_v, gg_features, gg_values, colors, groups) {
+  dt         = data.table(feature = gg_features, value = gg_values,
+                          type = groups)
+  feature_gg = ggplot(dt, aes(x = value, y = feature, fill = type)) +
+    geom_bar(stat = 'identity') +
+    coord_cartesian(xlim =c(0, 3)) +
+    scale_y_discrete(labels = feature_v) +
+    scale_fill_manual('Feature', values = colors, limits = names(colors), drop = FALSE) +
+    xlab("Mean |SHAP Value|") +
+    theme_bw() +
+    theme(legend.position='bottom',
+          text = element_text(color = 'black', size = 6),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 7),
+          axis.text = element_text(size = 6, color = 'black'),
+          strip.text = element_text(size = 6, color = 'black'))
+  return(feature_gg)
 }
 bmp_map           = function(dt_r, .ssp) {
   require(ggthemes)
@@ -2334,15 +3153,182 @@ bmp_map           = function(dt_r, .ssp) {
               aes(x = x, y = y, fill = scenario)) +
     scale_fill_manual(values = colors) +
     theme(legend.position='none',
-          plot.margin = unit(c(0,0,-1,0), "cm"))
+          plot.margin = unit(c(0,0,-1,0), "null"),
+          panel.grid.major = element_blank())
   gg_BMP
   
   gg_maps = list(bmp = gg_BMP)
   return(gg_maps)
 }
-
-
+bmp_bplot          = function(dt_r, .ssp) {
+  # filter dt
+  dt_r = dt_r[ssp %in% .ssp,]
+  
+  # update scenarios
+  dt_r[scenario %in% 'BAU',       scenario := '1']
+  dt_r[scenario %in% 'res',       scenario := '2']
+  # dt_r[scenario %in% 'ntill',     scenario := '3']
+  dt_r[scenario %in% 'ntill-res', scenario := '3']
+  # dt_r[scenario %in% 'ccg',       scenario := '5']
+  dt_r[scenario %in% 'ccg-res',   scenario := '4']
+  # dt_r[scenario %in% 'ccl',       scenario := '7']
+  dt_r[scenario %in% 'ccl-res',   scenario := '5']
+  dt_r[scenario %in% 'ccg-ntill', scenario := '6']
+  dt_r[scenario %in% 'ccl-ntill', scenario := '7']
+  # flip GHG sign
+  dt_r[, GHG_area := fifelse(GHG_area < 0, abs(GHG_area), GHG_area*-1L)]
+  # make data.frame
+  dt_r = as.data.frame(dt_r)
+  # make IPCC_NAME a factor
+  dt_r$IPCC_NAME = factor(dt_r$IPCC_NAME, levels = c('LAC', 'EEWCA', 'DEV',
+                                                        'AME', 'ADP'))
+  
+  colors = c('1' = "#7A0403FF", '2' = "#F36215FF", 
+             '3' = "#FCB036FF", '4' = "#2CF09EFF", '5' = "#23C3E4FF", 
+             '6' = "#4681F7FF", '7'= "#3F3994FF")
+  
+  bmp_bar = ggplot(dt_r, aes(color = scenario, y = IPCC_NAME, x = cell)) +
+    geom_bar(position = 'fill', stat = 'identity', width = 0.7) +
+    xlab('Proportion of Grid Cells') +
+    scale_colour_manual(values = colors) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 7),
+          legend.position  = 'none')
+  
+  # note: x scaled for sum and for annual GHG thru 2050
+  bmp_ghg_bar = ggplot(dt_r, aes(color = scenario, fill = scenario, y = IPCC_NAME, x = (GHG_area/35L)/1e9)) +
+    geom_bar(position = 'stack', stat = 'identity', width = 0.7) +
+    xlab((expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Pg~CO[2]*-eq*~yr^-1*')')))) +
+    scale_fill_manual(values = colors) +
+    scale_colour_manual(values = colors) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 7),
+          legend.position  = 'none')
+  
+  ggplots = list(freq = bmp_bar, ghg = bmp_ghg_bar)
+  return(ggplots)
+ 
+}
+#-----------------------------------------------------------------------------------------
+# GRAVEYARD KEEP FOR NOW
+#-----------------------------------------------------------------------------------------
 # check still needed
+soc_gl_rg_ha2      = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else if (.time == 2100) {
+    period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_soc = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = abs((s_SOC/period)), y = scenario, fill = scenario)) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Annual~SOC~Sequestration), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(0,2.5), breaks = seq(0, 2.5, 0.5)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_soc)
+}
+ghg_gl_rg_ha2      = function(dt_gl_gcm, dt_rg_gcm,.ssp, .time) {
+  # divide by years
+  if (.time == 2050) {
+    period = 35L
+  } else if (.time == 2030) {
+    period = 15L
+  } else if (.time == 2100) {
+    period = 85L
+  } else {
+    print("This is not a valid time entry.")
+    stop()
+  }
+  # combine dt
+  dt_gcm = rbind(dt_gl_gcm, dt_rg_gcm)
+  
+  #update scenario names
+  scenario_lbl = c('ntill-res' = c('0G-0L-0T-1R'), 'ccg-res' = c('1G-0L-1T-1R'),
+                   'ccl-res' = c('0G-1L-1T-1R'), 'ccg-ntill' = c('1G-0L-0T-1R'),
+                   'ccl-ntill' = c('0G-1L-0T-1R'))
+  dt_gcm[, y_block := as.factor(y_block)]
+  dt_gcm = dt_gcm[scenario %in% c('ntill-res', 'ccg-res', 'ccl-res',
+                                  'ccg-ntill', 'ccl-ntill')]
+  
+  bplot_ghg = ggplot(data = dt_gcm[ssp %in% .ssp & y_block %in% .time],
+                     aes(x = abs((s_GHG/period)), y = scenario, fill = scenario)) +
+    geom_density_ridges(scale = 2, bandwidth = 0.05) + # adjusted from 0.015
+    geom_vline(xintercept = 0) +
+    facet_wrap(.~factor(IPCC_NAME, levels = c('GLOBE', 'ADP', 'AME', 
+                                              'DEV', 'EEWCA', 'LAC')), nrow = 3, ncol = 2) +
+    ylab('Scenario') +
+    scale_y_discrete(labels = scenario_lbl, limits = c('ccg-res','ntill-res','ccl-res','ccg-ntill', 'ccl-ntill')) +
+    scale_fill_manual(values = c('ccl-ntill' = "#66C2A5", 'ccg-ntill' = "#FC8D62", 'ccl-res' = "#8DA0CB",
+                                 'ntill-res' = "#E78AC3", 'ccg-res' = "#A6D854")) +
+    xlab(expression(atop(paste(Annual~GHG~Mitigation~Potential), '('*Mg~CO[2]*-eq*~ha^-1*~yr^-1*')'))) +
+    scale_x_continuous(limits = c(-0.5,2.0), breaks = seq(-0.5, 2.0, 0.5)) +
+    theme_bw() +
+    theme(text = element_text(color = 'black', size = 7),
+          axis.text    = element_text(size = 6, color = 'black'),
+          strip.text   = element_text(size = 6, color = 'black'),
+          axis.title.x = element_text(size = 7),
+          axis.title.y = element_blank(),
+          legend.position = 'none')
+  
+  return(bplot_ghg)
+}
+cluster_bplot       = function(k_dt, response) {
+  bp_gg = ggplot(k_dt, aes(x = cluster, y = get(response), fill = cluster)) +
+    stat_boxplot(geom = "errorbar", width = 0.25) +
+    geom_boxplot(alpha = 0.9, outlier.shape = NA) +
+    stat_summary(fun = mean, geom = "point", shape = 23, size = 4) +
+    geom_hline(yintercept=0) +
+    scale_fill_manual(values = c("#66C2A5", "#FC8D62","#8DA0CB", "#E78AC3", 
+                                          "#A6D854","#FFD92F", "#E5C494", "#B3B3B3")) +
+                                            xlab("Cluster") +
+    theme_bw() +
+    theme(text = element_text(size = 20, color = "black"),
+          strip.text.x = element_text(size = 20, color = "black"),
+          axis.text = element_text(size = 20, color = "black"),
+          legend.title = element_text(size = 20, color = "black"),
+          legend.position = "none") +
+    guides(fill = guide_legend(title = "Cluster"))
+  return(bp_gg)
+}
 cumul_map                = function(dt_r, .time, .ssp) {
   require(ggthemes)
   require(gridExtra)
@@ -2759,7 +3745,7 @@ cumul_var_map            = function(dt_r, .time, .ssp) {
   r_eckiv_dt_var[, s_ccbio_2100 := as.character(s_ccbio_2100)]
   r_eckiv_dt_var[, s_annet_2100 := round(s_annet_2100, digits = 0)]
   r_eckiv_dt_var[, s_annet_2100 := as.character(s_annet_2100)]
- 
+  
   # create sf object
   data(wrld_simpl)
   wrld_simpl_sf = sf::st_as_sf(wrld_simpl)
@@ -2822,7 +3808,7 @@ cumul_var_map            = function(dt_r, .time, .ssp) {
   
   # colors_bar1 = c("#276419", "#4D9221","#7FBC41","#B8E186","#E6F5D0",
   #                          "#FDE0EF","#F1B6DA","#DE77AE", "#C51B7D", "#8E0152")
-                           
+  
   colors_bar2 =c("#8E0152", "#C51B7D","#DE77AE", "#F1B6DA", 
                           "#FDE0EF", "#E6F5D0","#B8E186", "#7FBC41", "#4D9221", "#276419")
                           
@@ -3007,7 +3993,7 @@ ann_var_map              = function(dt_r, .time, .ssp, .vars) {
   
   colors_bar1 = c("#276419", "#4D9221","#7FBC41","#B8E186","#E6F5D0",
                            "#FDE0EF","#F1B6DA","#DE77AE", "#C51B7D", "#8E0152")
-
+                           
   colors_bar2 =c("#8E0152", "#C51B7D","#DE77AE", "#F1B6DA", 
                           "#FDE0EF", "#E6F5D0","#B8E186", "#7FBC41", "#4D9221", "#276419")
                           
@@ -3040,69 +4026,6 @@ ann_var_map              = function(dt_r, .time, .ssp, .vars) {
   gg_maps = list(CN = gg_CN, sldcmp = gg_sldcmp, sfdcmp = gg_sfdcmp, annet = gg_annet, NPP = gg_NPP,
                  CN_legend = gg_legend1, dcmp_legend = gg_legend2, annet_legend = gg_legend3, NPP_legend = gg_legend4)
   return(gg_maps)
-}
-cumul_line               = function(dt, dt_gcm) {
-  require(ggplot2)
-  require(data.table)
-  
-  # add 2016, start at 0
-  dt_s = data.table(ssp    = c('ssp126', 'ssp370', 'historical'), y_block = 2016,
-                    Ts_SOC_m = 0L, Ts_N2O_m = 0L, Ts_GHG_m = 0L)
-  cols = c('ssp', 'y_block','Ts_SOC_m', 'Ts_N2O_m', 'Ts_GHG_m')
-  dt   = dt[, ..cols]
-  dt   = rbind(dt, dt_s)
-  setorder(dt, ssp, y_block)
-  
-  dt_s_gcm = data.table(ssp     = c(rep('ssp126',28), rep('ssp370',24), rep('historical',1)), 
-                        gcm     = c(unique(dt_gcm[ssp %in% 'ssp126', gcm]),
-                                    unique(dt_gcm[ssp %in% 'ssp370', gcm]),
-                                    unique(dt_gcm[ssp %in% 'historical', gcm])),
-                        y_block = rep(2016,53),
-                        Ts_SOC  = rep(0L,53), Ts_N2O = rep(0L,53), Ts_GHG = rep(0L,53))
-  cols   = c('ssp','gcm','y_block','Ts_SOC', 'Ts_N2O', 'Ts_GHG')
-  dt_gcm = dt_gcm[, ..cols]
-  dt_gcm = rbind(dt_gcm, dt_s_gcm)
-  setorder(dt_gcm, ssp, y_block)
-  
-  ssp_lbl = c('ssp126' = c('SSP1-2.6'), 'ssp370' = c('SSP3-7.0'), 'historical' = c('No Change'))
-  
-  gg_n2o = ggplot(data = dt) +
-    geom_line(aes(x = y_block, y = (Ts_N2O_m/1000L)), color = 'aquamarine4', size = 1.25) + # convert to Pg
-    geom_hline(yintercept = 0) +
-    facet_grid(.~ssp, labeller = labeller(ssp = ssp_lbl)) +
-    xlab('Time') +
-    ylab(expression(atop(paste(GHG~Emissions~Cumulative~Difference), '('*Pg~CO[2]*-eq*')'))) +
-    scale_y_continuous(limits = c(-25, 25), breaks = seq(-25, 25, 5)) +
-    scale_x_continuous(limits = c(2016,2100), breaks = c(2020, 2050, 2080, 2100)) +
-    theme_bw() +
-    theme(text = element_text(color = 'black', size = 16),
-          axis.text.x  = element_text(angle = 45, hjust = 1),
-          axis.text    = element_text(size = 14, color = 'black'),
-          strip.text   = element_text(size = 14, color = 'black'),
-          axis.title.x = element_text(size = 16),
-          axis.title.y = element_text(size = 16),
-          legend.position = 'none')
-  
-  gg_n2o_all = gg_n2o +
-    geom_line(data = dt_gcm, aes(x = y_block, y = (Ts_N2O/1000L), group = gcm), color = 'aquamarine4', alpha = 0.2) + # convert to Pg
-    theme(legend.position = 'none')
-  
-  gg_SOC = gg_n2o_all +
-    geom_line(data = dt, aes(x = y_block, y = (Ts_SOC_m/1000L)), color = 'deeppink4', size = 1.25)
-  
-  gg_SOC_all = gg_SOC +
-    geom_line(data = dt_gcm, aes(x = y_block, y = (Ts_SOC/1000L), group = gcm), color = 'deeppink4', alpha = 0.2) + # convert to Pg
-    theme(legend.position = 'none')
-  
-  gg_GHG = gg_SOC_all +
-    geom_line(data = dt, aes(x = y_block, y = (Ts_GHG_m/1000L)), size = 1.25) 
-  
-  gg_GHG_all = gg_GHG +
-    geom_line(data = dt_gcm, aes(x = y_block, y = (Ts_GHG/1000L), group = gcm), color = 'black', alpha = 0.2) + # convert to Pg
-    theme(legend.position = 'none')
-  
-  ggplots = list(GHG = gg_GHG_all)
-  return(ggplots)
 }
 cumul_line_st            = function(dt, dt_gcm) {
   require(ggplot2)
@@ -3236,18 +4159,18 @@ cumul_rg_line            = function(dt, dt_gcm) {
   return(ggplots)
 }
 annual_total_rg_bp       = function(dt_gcm, .ssp, .region) {
-
+  
   scenario_lbl = c('res' = c('Residue'), 'ntill' = c('No-tillage'), 'ccg' = c('Grass CC'),
                    'ccl' = c('Legume CC'), 'ccg-ntill' = c('Grass CC Combined Practices'),
                    'ccl-ntill' = c('Legume CC Combined Practices'))
   # wide to long format
   dt = melt(dt_gcm,
-       id.vars = c("gcm", "ssp", "y_block", "scenario","IPCC_NAME"),
-       measure.vars = colnames(dt_gcm)[5:20])
+            id.vars = c("gcm", "ssp", "y_block", "scenario","IPCC_NAME"),
+            measure.vars = colnames(dt_gcm)[5:20])
   dt[, y_block := as.factor(y_block)]
   
   dt$scenario = factor(dt$scenario, levels = c('res', 'ntill', 'ccg', 'ccg-ntill', 'ccl', 'ccl-ntill'))
-
+  
   bplot_n2o = ggplot() +
     geom_boxplot(data = dt[ssp %in% .ssp & IPCC_NAME %in% .region &
                              y_block %in% c('2030', '2050', '2100') &
@@ -3466,7 +4389,7 @@ rg_annual_sgl_mSE = function(dt, .ssp, .scenarios, .regions, .region) {
                     ymax = (m_grain_m+(Tm_grain_se))), fill = 'grey70', alpha = 0.6) +
     geom_point(aes(x = y_block, y = (m_grain_m)), size = 1.25) +
     geom_line(aes(x = y_block, y = (m_grain_m)))
-    
+  
   ggplots = list(GHG = gg_GHG, Yield = gg_grain_se)
   return(ggplots)
 }
@@ -3567,10 +4490,6 @@ rg_annual_cmb_mSE = function(dt, .ssp, .scenarios, .regions, .region) {
   ggplots = list(GHG = gg_GHG, Yield = gg_grain_se)
   return(ggplots)
 }
-
-#-----------------------------------------------------------------------------------------
-# GRAVEYARD KEEP FOR NOW
-#-----------------------------------------------------------------------------------------
 # cell_crop_area_weights   = function(.dt, .lu_path, .raster) {
 #   # CREATE dt
 #   crop_area_r  = rast(paste(.lu_path, .raster, sep = '/'))

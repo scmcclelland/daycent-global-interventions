@@ -1,6 +1,6 @@
 # filename:    analysis_bestpractice.R
 # created:     28 February 2024
-# updated:     13 March 2024
+# updated:     15 August 2024
 # author:      S.C. McClelland
 # description: This file analyzes GHG mitigation potential from DayCent simulations
 #              for global cropland over time for different interventions and SSPs. 
@@ -10,6 +10,49 @@
 #              'the difference in ensemble mean cumulative crop-area weighted grain yield 
 #              is >= 0 in 2030 or 2050.' The cumulative GHG mitigation potential is then
 #              divided by the number of years since the start of the simulation (15 or 35 years).
+# note:        All variables expressed as difference between practice(s) and REF
+#-------------------------------------------------------------------------------
+# Column Headers
+
+# cell: cell number
+# x: longitude
+# y: latitude
+# y_block: decade (mean annual + or - 5 years) or year (cumulative)
+# ssp: historical (no climate change), SSP1-2.6, SSP3-7.0
+# gcm: general circultion model from CMIP6
+# total_crop_area_ha: total crop area (maize, soybean, wheat) in grid cell
+
+# s_GHG: cumulative SOC + N2O differences
+# m_GHG: decadal mean annual SOC + N2O differences
+# s_SOC: cumulative SOC differences
+# m_SOC: decadal mean annual SOC differences
+# s_N2O: cumulative N2O (direct and indirect) differences
+# m_N2O: decadal mean annual N2O (direct and indirect) differences
+# s_dN2O: cumulative direct N2O differences
+# m_dN2O: decadal mean annual direct N2O differences
+# s_iN2O: cumulative indirect N2O differences
+# m_iN2O: decadal mean annual indirect N2O differences
+# s_cr_grain: cumulative crop yield differences
+# m_cr_grain: decadal mean annual crop yield differences
+
+# GHG units:
+# s_: Mg CO2-eq ha-1
+# m_: Mg CO2-eq ha-1 yr-1
+
+# grain units:
+# s_: g C m-2
+# m_: g C m-2 yr-1
+
+# Practices
+# res or residue (0G-0L-1T-1R)
+# ntill or no-tillage (0G-0L-0T-0R)
+# ntill-res or no-tillage + residue (0G-0L-0T-1R)
+# ccg or grass cover crop (1G-0L-1T-0R)
+# ccg-res or grass cover crop + residue (1G-0L-0T-1R)
+# ccl or legume cover crop (0G-1L-1T-0R)
+# ccl-res or legume cover crop + residue (0G-1L-1T-1R)
+# ccg-ntill or grass cover crop + no-tillage + residue (1G-0L-0T-1R)
+# ccl-ntill or legume cover crop + no-tillage + residue (0G-1L-0T-1R)
 #-------------------------------------------------------------------------------
 library(data.table)
 library(factoextra)
@@ -33,6 +76,8 @@ shp       = 'WB_countries_Admin0_10m.shp'
 #-------------------------------------------------------------------------------
 # LOAD Data
 #-------------------------------------------------------------------------------
+# Long to wide format
+
 # RESIDUE
 residue_dt = readRDS(paste(data.path, 'imputed-ensemble-relative-responses-weighted-mean-res.rds', sep = '/'))
 residue_dt = dcast(residue_dt,
@@ -88,38 +133,38 @@ ccl_ntill_dt = dcast(ccl_ntill_dt,
                      value.var = 'value')
 ccl_ntill_dt[, scenario := 'ccl-ntill']
 #-------------------------------------------------------------------------------
-# CONVERT Biomass Units
+# CONVERT Biomass Units: g C m-2 to kg ha-1 yr-1 or Mg ha-1
 #-------------------------------------------------------------------------------
 Mg_ha = 100L
 kg_ha = 10L
-C_bio = 0.45
+C_gr  = 0.42 # Ma et al. 2018 | value for 'reproductive organs'
   # RESIDUE
-residue_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-residue_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+residue_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+residue_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # NTILL
-# ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-# ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+# ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+# ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # NTILL-RES
-ntill_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ntill_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+ntill_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+ntill_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCG
-# ccg_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-# ccg_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+# ccg_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+# ccg_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCG-RES
-ccg_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccg_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+ccg_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+ccg_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCL
-# ccl_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-# ccl_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+# ccl_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+# ccl_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCL-RES
-ccl_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccl_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+ccl_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+ccl_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCG-NTILL-RES
-ccg_ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccg_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+ccg_ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+ccg_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
   # CCG-NTILL-RES
-ccl_ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccl_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+ccl_ntill_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_gr]
+ccl_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_gr]
 #-------------------------------------------------------------------------------
 # BEST MANAGEMENT PRACTICE THRU 2050 | NO YIELD CONSTRAINT, AREA-WEIGHTED
 #-------------------------------------------------------------------------------
@@ -170,6 +215,55 @@ sum(bmp_ensemble_2050_dt[ssp %in% 'ssp126', GHG_area])
 sum(bmp_ensemble_2050_dt[ssp %in% 'ssp126', GRAIN_area])
 # save 
 fwrite(bmp_ensemble_2050_dt, file = paste(data.path, 'best-management-practice-GHG-mitigation-2050.csv', sep = '/'))
+#-------------------------------------------------------------------------------
+# BEST MANAGEMENT PRACTICE THRU 2050 | YIELD MAXIMIZING, AREA-WEIGHTED
+#-------------------------------------------------------------------------------
+# combine dt
+# ensemble_dt      = rbind(residue_dt, ntill_dt, ntill_res_dt, ccg_dt, ccg_res_dt,
+#                     ccl_dt, ccl_res_dt, ccg_ntill_dt, ccl_ntill_dt)
+ensemble_dt         = rbind(residue_dt, ntill_res_dt, ccg_res_dt,
+                            ccl_res_dt, ccg_ntill_dt, ccl_ntill_dt)
+# multiply s_GHG by area | N.B. may not want to embed area into calculation
+ensemble_dt[, GHG_area   := s_GHG*total_crop_area_ha]
+ensemble_dt[, GRAIN_area := s_cr_grain*total_crop_area_ha]
+
+ensemble_2050_dt = ensemble_dt[y_block == 2050,]
+setorder(ensemble_2050_dt, cell, scenario)
+setcolorder(ensemble_2050_dt, c('cell', 'x', 'y', 'y_block', 'ssp', 'scenario'))
+
+cols             = c('cell', 'x', 'y', 'ssp', 'scenario', 'GRAIN_area')
+ensemble_2050_dt = ensemble_2050_dt[, ..cols]
+# melt
+ensemble_2050_dt = melt(ensemble_2050_dt,
+                        id.vars = c("cell", "x", "y", "ssp", "scenario"),
+                        measure.vars = "GRAIN_area")
+# get max value
+bmp_ensemble_2050_dt = ensemble_2050_dt[, .SD[which.max(value)], by = .(cell, x, y, ssp)]
+# dcast
+bmp_ensemble_2050_dt = dcast(bmp_ensemble_2050_dt,
+                             cell + x + y + ssp + scenario ~ variable,
+                             value.var = 'value')
+# join with original dt
+ensemble_gr_2050_dt  = ensemble_dt[y_block == 2050, c('cell', 'x', 'y', 'ssp',
+                                                      'scenario', 'GHG_area')]
+bmp_ensemble_2050_dt = bmp_ensemble_2050_dt[ensemble_gr_2050_dt, on = .(cell = cell,
+                                                                        x = x,
+                                                                        y = y,
+                                                                        ssp = ssp,
+                                                                        scenario = scenario)]
+bmp_ensemble_2050_dt = bmp_ensemble_2050_dt[!is.na(GRAIN_area)]
+setorder(bmp_ensemble_2050_dt, cell)
+NROW(bmp_ensemble_2050_dt) # 123108
+# recode positive GHG, GRAIN cells as 'no change'
+bmp_ensemble_2050_dt[GRAIN_area < 0, scenario := 'BAU']
+bmp_ensemble_2050_dt[scenario %in% 'BAU', GHG_area := 0]
+bmp_ensemble_2050_dt[scenario %in% 'BAU', GRAIN_area := 0]
+# check
+sum(bmp_ensemble_2050_dt[ssp %in% 'ssp126', GHG_area])
+sum(bmp_ensemble_2050_dt[ssp %in% 'ssp126', GRAIN_area])
+# save 
+fwrite(bmp_ensemble_2050_dt, file = paste(data.path, 'best-management-practice-GHG-mitigation-yield-maximum-2050.csv', sep = '/'))
+
 #-------------------------------------------------------------------------------
 # BEST MANAGEMENT PRACTICE THRU 2050 | YIELD CONSTRAINT
 #-------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 # filename:    figures_main.R
 # created:     06 March 2023
-# updated:     13 March 2024
+# updated:     24 July 2024
 # author:      S.C. McClelland
 # description: This file creates main text figures for manuscript.
 #-------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ raster    = 'msw-cropland-rf-ir-area.tif'
 raster_cc = 'msw-masked-cropland-rf-ir-area.tif'
 shp       = 'WB_countries_Admin0_10m.shp'
 #-------------------------------------------------------------------------------
-# FIGURE 1 | UNCONSTRAINED & YIELD CONSTRAINED POTENTIAL
+# FIGURE 1 | FULL ADOPTION, YIELD CONSTRAINED, REVENUE POTENTIAL
 #-------------------------------------------------------------------------------
 # GLOBAL
 unconstr_2050     = fread(paste(data.path, 'global-unconstrained-GHG-mitigation-potential-2050.csv', sep = '/'))
@@ -43,40 +43,27 @@ ipcc_yield_cst_2050_h = fread(paste(data.path, 'regional-yield-constrained-high-
 
 # background map
 map_background = IPCC_map(lu.path, shp, raster)
-ggsave(paste0(fig.path,'/IPCC-map-background.tiff'), map_background$IPCC, units = 'in', width = 9, height = 5, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/IPCC-map-background.pdf'), map_background$IPCC, units = 'mm', width = 180, height = 185, device='pdf', dpi=300)
 # global
 global_126_ptl = gl_bar_potential(unconstr_2050, yield_cst_2050, yield_cst_2050_l, yield_cst_2050_h,'ssp126')
-ggsave(paste0(fig.path,'/ssp126-2050-global-ghg-mitigation-potential.tiff'), global_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-global-ghg-mitigation-potential.pdf'), global_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 # regional
 ADP_126_ptl    = rg_bar_potential(ipcc_unconstr_2050, ipcc_yield_cst_2050, ipcc_yield_cst_2050_l, ipcc_yield_cst_2050_h, 'ssp126', 'ADP')
-ggsave(paste0(fig.path,'/ssp126-2050-ADP-ghg-mitigation-potential.tiff'), ADP_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-ADP-ghg-mitigation-potential.pdf'), ADP_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 AME_126_ptl    = rg_bar_potential(ipcc_unconstr_2050, ipcc_yield_cst_2050, ipcc_yield_cst_2050_l, ipcc_yield_cst_2050_h, 'ssp126', 'AME')
-ggsave(paste0(fig.path,'/ssp126-2050-AME-ghg-mitigation-potential.tiff'), AME_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-AME-ghg-mitigation-potential.pdf'), AME_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 DEV_126_ptl    = rg_bar_potential(ipcc_unconstr_2050, ipcc_yield_cst_2050, ipcc_yield_cst_2050_l, ipcc_yield_cst_2050_h, 'ssp126', 'DEV')
-ggsave(paste0(fig.path,'/ssp126-2050-DEV-ghg-mitigation-potential.tiff'), DEV_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-DEV-ghg-mitigation-potential.pdf'), DEV_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 EEWCA_126_ptl  = rg_bar_potential(ipcc_unconstr_2050, ipcc_yield_cst_2050, ipcc_yield_cst_2050_l, ipcc_yield_cst_2050_h, 'ssp126', 'EEWCA')
-ggsave(paste0(fig.path,'/ssp126-2050-EEWCA-ghg-mitigation-potential.tiff'), EEWCA_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-EEWCA-ghg-mitigation-potential.pdf'), EEWCA_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 LAC_126_ptl    = rg_bar_potential(ipcc_unconstr_2050, ipcc_yield_cst_2050, ipcc_yield_cst_2050_l, ipcc_yield_cst_2050_h, 'ssp126', 'LAC')
-ggsave(paste0(fig.path,'/ssp126-2050-LAC-ghg-mitigation-potential.tiff'), LAC_126_ptl$GHG, bg = 'transparent',units = 'in', width = 8, height = 6, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/ssp126-2050-LAC-ghg-mitigation-potential.pdf'), LAC_126_ptl$GHG, bg = 'transparent',units = 'mm', width = 58, height = 58, device='pdf', dpi=300)
 #-------------------------------------------------------------------------------
-# FIGURE 2 | GLOBAL HECTARE RESPONSE
-#-------------------------------------------------------------------------------
-gl_hectare_gcm  = fread(paste(data.path, 'gcm-decadal-global-crop-soil-responses.csv', sep = '/'))
-rg_hectare_gcm  = fread(paste(data.path, 'gcm-decadal-IPCC-region-crop-soil-responses.csv', sep = '/'))
-
-# SSP1-2.6 | 2050
-# global
-soc_gl_126_2050 = soc_gl_ha(gl_hectare_gcm, 'ssp126', 2050)
-ggsave(soc_gl_126_2050, file = paste(fig.path, 'gcm-soc-seq-rate-global-ssp126-2050.tiff', sep = '/'), units = 'in', width = 9, height = 10, device='tiff', dpi=300)
-# regional
-soc_rg_126_2050 = soc_rg_ha(rg_hectare_gcm, 'ssp126', 2050)
-ggsave(soc_rg_126_2050, file = paste(fig.path, 'gcm-soc-seq-rate-IPCC-region-ssp126-2050.tiff', sep = '/'), units = 'in', width = 9, height = 10, device='tiff', dpi=300)
-#-------------------------------------------------------------------------------
-# FIGURE 3 | MAPS
+# FIGURE 2 | MAPS
 #-------------------------------------------------------------------------------
 Mg_ha = 100L
 kg_ha = 10L
-C_bio = 0.45
+C_bio = 0.42 # Ma et al. 2018 | value for 'reproductive organs'
 # LOAD DATA
 # NTILL-RES
 ntill_res_dt = readRDS(paste(data.path, 'imputed-ensemble-relative-responses-weighted-mean-ntill-res.rds', sep = '/'))
@@ -85,20 +72,7 @@ ntill_res_dt = dcast(ntill_res_dt,
                      value.var = 'value')
 ntill_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
 ntill_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
-# CCG-RES
-ccg_res_dt = readRDS(paste(data.path, 'imputed-ensemble-relative-responses-weighted-mean-ccg-res.rds', sep = '/'))
-ccg_res_dt = dcast(ccg_res_dt,
-                   cell + x + y + y_block + ssp + total_crop_area_ha ~ variable,
-                   value.var = 'value')
-ccg_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccg_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
-# CCL-RES
-ccl_res_dt = readRDS(paste(data.path, 'imputed-ensemble-relative-responses-weighted-mean-ccl-res.rds', sep = '/'))
-ccl_res_dt = dcast(ccl_res_dt,
-                   cell + x + y + y_block + ssp + total_crop_area_ha ~ variable,
-                   value.var = 'value')
-ccl_res_dt[, m_cr_grain := (m_cr_grain*kg_ha)/C_bio]
-ccl_res_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
+
 # CCG-NTILL-RES
 ccg_ntill_dt = readRDS(paste(data.path, 'imputed-ensemble-relative-responses-weighted-mean-ccg-ntill.rds', sep = '/'))
 ccg_ntill_dt = dcast(ccg_ntill_dt,
@@ -116,66 +90,243 @@ ccl_ntill_dt[, s_cr_grain := (s_cr_grain/Mg_ha)/C_bio]
 
 # MAPS | SSP1-2.6, 2050
 ntill_res_ssp126_2050 = annual_map(ntill_res_dt, 2050, 'ssp126')
-# ccg_res_ssp126_2050   = annual_map(ccg_res_dt, 2050, 'ssp126')
-# ccl_res_ssp126_2050   = annual_map(ccl_res_dt, 2050, 'ssp126')
 ccg_ntill_ssp126_2050 = annual_map(ccg_ntill_dt, 2050, 'ssp126')
 ccl_ntill_ssp126_2050 = annual_map(ccl_ntill_dt, 2050, 'ssp126')
 
 ssp126_2050_maps      = ntill_res_ssp126_2050$GHG + ntill_res_ssp126_2050$Yield +
-  # ccg_res_ssp126_2050$GHG   + ccg_res_ssp126_2050$Yield +
-  # ccl_res_ssp126_2050$GHG   + ccl_res_ssp126_2050$Yield +
   ccg_ntill_ssp126_2050$GHG + ccg_ntill_ssp126_2050$Yield +
   ccl_ntill_ssp126_2050$GHG + ccl_ntill_ssp126_2050$Yield +
   plot_layout(ncol = 2, nrow = 3, guides = 'collect') &
   theme(legend.position = 'none')
-ssp126_2050_maps     = ssp126_2050_maps + plot_annotation(tag_levels = 'a')
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-ghg-yield.tiff'),     ssp126_2050_maps,  units = 'in', width = 10, height = 14, device='tiff', dpi=300)
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-ghg-legend.tiff'),    ntill_res_ssp126_2050$legend1,  units = 'in', width = 9, height = 5, device='tiff', dpi=300)
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-yield-legend.tiff'),  ntill_res_ssp126_2050$legend2,  units = 'in', width = 9, height = 5, device='tiff', dpi=300)
+ssp126_2050_maps     = ssp126_2050_maps + plot_annotation(tag_levels = list(c('a', 'd', 'b', 'e', 'c', 'f'))) &
+  theme(plot.tag = element_text(size = 7))
 
-# MAPS | SSP1-2.6, 2030
-ntill_res_ssp126_2030 = annual_map(ntill_res_dt, 2030, 'ssp126')
-ccg_res_ssp126_2030   = annual_map(ccg_res_dt, 2030, 'ssp126')
-ccl_res_ssp126_2030   = annual_map(ccl_res_dt, 2030, 'ssp126')
-ccg_ntill_ssp126_2030 = annual_map(ccg_ntill_dt, 2030, 'ssp126')
-ccl_ntill_ssp126_2030 = annual_map(ccl_ntill_dt, 2030, 'ssp126')
-
-ssp126_2030_maps      = ntill_res_ssp126_2030$GHG + ntill_res_ssp126_2030$Yield +
-  # ccg_res_ssp126_2030$GHG   + ccg_res_ssp126_2030$Yield +
-  # ccl_res_ssp126_2030$GHG   + ccl_res_ssp126_2030$Yield +
-  ccg_ntill_ssp126_2030$GHG + ccg_ntill_ssp126_2030$Yield +
-  ccl_ntill_ssp126_2030$GHG + ccl_ntill_ssp126_2030$Yield +
-  plot_layout(ncol = 2, nrow = 3, guides = 'collect') &
-  theme(legend.position = 'none')
-ssp126_2030_maps     = ssp126_2030_maps + plot_annotation(tag_levels = 'a')
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2030-ghg-yield.tiff'),     ssp126_2030_maps,  units = 'in', width = 10, height = 14, device='tiff', dpi=300)
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2030-ghg-legend.tiff'),    ntill_res_ssp126_2030$legend1,  units = 'in', width = 9, height = 5, device='tiff', dpi=300)
-ggsave(paste0(fig.path,'/', 'ssp126-annual-2030-yield-legend.tiff'),  ntill_res_ssp126_2030$legend2,  units = 'in', width = 9, height = 5, device='tiff', dpi=300)
+ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-ghg-yield.pdf'),     ssp126_2050_maps,  units = 'mm', width = 180, height = 185, device='pdf', dpi=300)
+ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-ghg-legend.pdf'),    ntill_res_ssp126_2050$legend1,  units = 'mm', width = 180, height = 50, device='pdf', dpi=300)
+ggsave(paste0(fig.path,'/', 'ssp126-annual-2050-yield-legend.pdf'),  ntill_res_ssp126_2050$legend2,  units = 'mm', width = 180, height = 50, device='pdf', dpi=300)
 #-------------------------------------------------------------------------------
-# FIGURE 4 | BEST MANAGEMENT PRACTICE
+# FIGURE 3 | BEST MANAGEMENT PRACTICE
 #-------------------------------------------------------------------------------
 IPCC_dt = ipcc_name(lu.path, shp, raster)
 ghg_bmp_dt = fread(paste(data.path, 'best-management-practice-GHG-mitigation-2050.csv', sep = '/'))
 ghg_bmp_dt = ghg_bmp_dt[IPCC_dt[, .(cell, IPCC_NAME, WB_NAME)], 
-           on = .(cell = cell) ]
+                        on = .(cell = cell) ]
 ghg_bmp_dt = ghg_bmp_dt[!is.na(ssp)]
+
+ym_bmp_dt = fread(paste(data.path, 'best-management-practice-GHG-mitigation-yield-maximum-2050.csv', sep = '/'))
+ym_bmp_dt = ym_bmp_dt[IPCC_dt[, .(cell, IPCC_NAME, WB_NAME)], 
+                      on = .(cell = cell) ]
+ym_bmp_dt = ym_bmp_dt[!is.na(ssp)]
 
 yc_bmp_dt  = fread(paste(data.path, 'best-management-practice-GHG-mitigation-yield-constrained-2050.csv', sep = '/'))
 yc_bmp_dt  = yc_bmp_dt[IPCC_dt[, .(cell, IPCC_NAME, WB_NAME)], 
-                        on = .(cell = cell) ]
+                       on = .(cell = cell) ]
 yc_bmp_dt  = yc_bmp_dt[!is.na(ssp)]
 
 # GHG | SSP1-2.6
 ghg_126_bmp = bmp_map(ghg_bmp_dt, 'ssp126')
-ggsave(paste0(fig.path,'/ghg-bmp-ssp126-2050.tiff'), ghg_126_bmp$bmp, units = 'in', width = 9, height = 5, device='tiff', dpi=300)
+
+# YM | SSP1-2.6
+ym_126_bmp = bmp_map(ym_bmp_dt, 'ssp126')
 
 # YC  | SSP1-2.6
 yc_126_bmp = bmp_map(yc_bmp_dt, 'ssp126')
-ggsave(paste0(fig.path,'/yield-constrained-bmp-ssp126-2050.tiff'), yc_126_bmp$bmp, units = 'in', width = 9, height = 5, device='tiff', dpi=300)
+
+# Proportions by region, YC | SSP1-2.6
+yc_126_bmp_bar = bmp_bplot(yc_bmp_dt, 'ssp126')
+
+bmp_plots = ghg_126_bmp$bmp + yc_126_bmp_bar$freq + ym_126_bmp$bmp + yc_126_bmp_bar$ghg + yc_126_bmp$bmp +
+  plot_layout(ncol = 2, nrow = 3, guides = 'collect') &
+  theme(legend.position = 'none')
+
+bmp_plots = bmp_plots + plot_annotation(tag_levels = list(c('a', 'd', 'b', 'e', 'c'))) &
+  theme(plot.tag = element_text(size = 7))
+
+# save 
+ggsave(paste0(fig.path,'/', 'ssp126-bmp-plot.pdf'),bmp_plots,  units = 'mm', width = 180, height = 185, device='pdf', dpi=300)
+#-------------------------------------------------------------------------------
+# FIGURE 4 | GLOBAL HECTARE RESPONSE
+#-------------------------------------------------------------------------------
+gl_hectare_gcm  = fread(paste(data.path, 'gcm-decadal-global-crop-soil-responses.csv', sep = '/'))
+rg_hectare_gcm  = fread(paste(data.path, 'gcm-decadal-IPCC-region-crop-soil-responses.csv', sep = '/'))
+
+# SSP1-2.6 | 2050
+# global
+soc_gl_126_2050 = soc_gl_ha(gl_hectare_gcm, 'ssp126', 2050)
+ggsave(soc_gl_126_2050, file = paste(fig.path, 'gcm-soc-seq-rate-global-ssp126-2050.pdf', sep = '/'), units = 'mm', width = 88, height = 88, device='pdf', dpi=300)
+#-------------------------------------------------------------------------------
+# Extended Data 1-4 | SUPERVISED CLUSTERING
+#-------------------------------------------------------------------------------
+# Fig. 1 SC Features, SOC and Yield, 1G-0L-0T-1R and 0G-1L-0T-1R
+# SOC
+load(paste(data.path, "ccl-syn-soc_SHAP.Rdata", sep = '/'))
+load(paste(data.path, "ccg-syn-soc_SHAP.Rdata", sep = '/'))
+# Yield
+load(paste(data.path, "ccl-ntill-yield_SHAP.Rdata", sep = '/'))
+load(paste(data.path, "ccg-ntill-yield_SHAP.Rdata", sep = '/'))
+
+colors = c('Climate' = "#1B9E77", 'Site' = "#D95F02", 'Management' = "#7570B3", 'State' = "#E7298A")
+# CCL-NTILL | SOC
+ccl_f_names    = c('Soil Decomposition Multiplier', 'Surface Decomposition Multiplier','MAT',
+                   'ET','Sand Fraction',parse(text = 'Delta~Grain~Yield'),
+                   parse(text = 'Delta~N~Leach'), parse(text = 'Delta~Soil~Decomposition~Multiplier'), parse(text = 'Delta~N~Fixation'),
+                   parse(text = 'Delta~ET'),'N Fixation','N Inputs',
+                   parse(text = 'Delta~Residue~Biomass'), 'Initial Soil C Stock', 'Cover Crop Biomass') # reverse order
+ccl_f_types    = c('State', 'Site', 'State', 'Management', 'State', 'State', 'State',
+                   'State', 'State', 'State', 'Site', 'State', 'Climate', 'State', 'State') # actual order
+ccl_feature    = feature_p(ccl_f_names, ccl_SOC$gl_gg$data$feature, 
+                           ccl_SOC$gl_gg$data$value, colors, ccl_f_types)
+
+# CCL-NTILL | Yield
+ccl_ntill_y_f_names    = c('Nitrate Fertilizer Fraction', parse(text = 'Delta~Surface~Decomposition~Multiplier'),'Residue Return Fraction',
+                           'MAT', 'Cover Crop Biomass', 'Clay Fraction',
+                           'Soil Bulk Density', 'Sand Fraction', parse(text = 'Delta~Soil~Organic~Carbon'),
+                           parse(text = 'Delta~N~Leached'), parse(text = 'Delta~Gross~Nitrification'), 'N Inputs',
+                           parse(text='Delta~ET'), 'MAP', parse(text = 'Delta~N~Fixation')) # reverse order
+ccl_ntill_y_f_types    = c('State', 'Climate', 'State', 'Management', 'State', 'State', 'State',
+                           'Site', 'Site', 'Site', 'State', 'Climate', 'Management', 'State', 'Management') # actual order
+ccl_ntill_y_feature    = feature_yield_p(ccl_ntill_y_f_names, ccl_ntill_YIELD$gl_gg$data$feature,
+                                         ccl_ntill_YIELD$gl_gg$data$value, colors, ccl_ntill_y_f_types)
+ccl_ntill_y_feature    = ccl_ntill_y_feature + coord_cartesian(xlim =c(0, 12.5))
+
+
+# CCG-NTILL | SOC
+ccg_f_names    = c(parse(text = 'Delta~Cover~Crop~Biomass'), parse(text = 'Delta~ET'),'Urea Fertilizer Fraction',
+                   'MAT',parse(text = 'Delta~Grain~Yield'),parse(text = 'Delta~Soil~Decomposition~Multiplier'),
+                   'Initial Residue Return Fraction', 'Sand Fraction', parse(text = 'Delta~Gross~Nitrification'),
+                   parse(text = 'Delta~Residue~Biomass'),'Gross Nitrification','N Inputs',
+                   parse(text = 'Delta~N~Leach'), 'Initial Soil C Stock', 'Cover Crop Biomass') # reverse order
+ccg_f_types    = c('State', 'Site', 'State', 'Management', 'State', 'State', 'State',
+                   'Site', 'Management', 'State', 'State', 'Climate', 'Management', 'State', 'State') # actual order
+ccg_feature    = feature_p(ccg_f_names, ccg_SOC$gl_gg$data$feature, 
+                           ccg_SOC$gl_gg$data$value, colors, ccg_f_types)
+
+# CCG-NTILL | Yield
+ccg_ntill_y_f_names    = c(parse(text = 'Delta~Surface~Decomposition~Multiplier'), 'Initial SOC stock', parse(text = 'Delta~Soil~Decomposition~Multiplier'),
+                           'N Inputs', 'MAT', 'Clay Fraction',
+                           'Soil Bulk Density', parse(text = 'Delta~ET'), 'Residue Return Fraction',
+                           'Sand Fraction', 'MAP', parse(text = 'Delta~Gross~Nitrification'),
+                           'Cover Crop Biomass',parse(text = 'Delta~N~Leached'), parse(text = 'Delta~Soil~Organic~Carbon')) # reverse order
+ccg_ntill_y_f_types    = c('State', 'State', 'State', 'State', 'Climate', 'Site', 'Management',
+                           'State', 'Site', 'Site', 'Climate', 'Management', 'State', 'Site', 'State') # actual order
+ccg_ntill_y_feature    = feature_yield_p(ccg_ntill_y_f_names, ccg_ntill_YIELD$gl_gg$data$feature,
+                                         ccg_ntill_YIELD$gl_gg$data$value, colors, ccg_ntill_y_f_types)
+ccg_ntill_y_feature    = ccg_ntill_y_feature + coord_cartesian(xlim =c(0, 4))
+
+# COMBINE
+Feature_Rank   = ccl_feature + ccl_ntill_y_feature + ccg_feature + ccg_ntill_y_feature +
+  plot_layout(ncol = 2, nrow = 2, guides = 'collect') &
+  theme(legend.position = 'bottom')
+Feature_Rank = Feature_Rank + plot_annotation(tag_levels = list(c('a', 'c', 'b', 'd'))) &
+  theme(plot.tag = element_text(size = 7))
+ggsave(paste0(fig.path,'/ext-data/SOC-Yield-SHAP-features-all.pdf'), Feature_Rank, units = 'mm', width = 180, height = 185, device='pdf', dpi=300)
+
+# Fig. 2 SC Main Features, SOC, 1G-0L-0T-1R and 0G-1L-0T-1R
+# CCL-NTILL
+ccl_map     = cluster_map(ccl_k_SOC$kmeans_dt, 'ssp126')
+ccl_density = SHAP_density(copy(ccl_k_SOC$kmeans_dt), 'ssp126', 
+                           c('s_SOC', 's_cc_biomass', 'd_s_cr_residC', 'N.amt'),
+                           c('s_SOC'         = "Soil Organic Carbon Difference\n(Mg CO\u2082-eq ha\u207b\u00b9 yr\u207b\u00b9)",
+                             's_cc_biomass'  = "Cover Crop Biomass\n(Mg DM ha\u207b\u00b9 yr\u207b\u00b9)",
+                             'd_s_cr_residC' = "Residue Biomass Difference\n(Mg DM ha\u207b\u00b9 yr\u207b\u00b9)",
+                             'N.amt'         = "Nitrogen Inputs\n(g N m\u207b\u00b2 yr\u207b\u00b9)"))
+
+# CCG-NTILL
+ccg_map     = cluster_map(ccg_k_SOC$kmeans_dt, 'ssp126')
+ccg_density = SHAP_density(copy(ccg_k_SOC$kmeans_dt), 'ssp126', 
+                           c('s_SOC', 's_cc_biomass', 'd_s_N_leach', 'N.amt'),
+                           c('s_SOC'         = "Soil Organic Carbon Difference\n(Mg CO\u2082-eq ha\u207b\u00b9 yr\u207b\u00b9)",
+                             's_cc_biomass'  = "Cover Crop Biomass\n(Mg DM ha\u207b\u00b9 yr\u207b\u00b9)",
+                             'd_s_N_leach'   = "Leached Nitrogen Difference\n(g N m\u207b\u00b2 yr\u207b\u00b9)",
+                             'N.amt'         = "Nitrogen Inputs\n(g N m\u207b\u00b2 yr\u207b\u00b9)"))
+SOC_main_features = ccl_density + ccg_density + ccl_map + ccg_map +
+  plot_layout(ncol = 2, nrow = 2, guides = 'collect') &
+  theme(legend.position = 'none')
+SOC_main_features = SOC_main_features + plot_annotation(tag_levels = list(c('a', 'c', 'b', 'd'))) &
+  theme(plot.tag = element_text(size = 7))
+# add legend manually
+ggsave(paste0(fig.path,'/ext-data/SOC-main-features-all.tiff'), SOC_main_features, units = 'mm', width = 180, height = 160, device='tiff', dpi=300)
+# Fig. 3 SC Main Features, Yield, 1G-0L-0T-1R and 0G-1L-0T-1R
+# CCL-NTILL
+ccl_ntill_y_map     = cluster_map(ccl_ntill_k_YIELD$kmeans_dt, 'ssp126')
+ccl_ntill_y_density = SHAP_y_density(copy(ccl_ntill_k_YIELD$kmeans_dt), 'ssp126', 
+                                        c('s_cr_grain', 'm_nfix', 'hist_bio12', 's_annet'),
+                                        c('s_cr_grain'    = "Grain Yield Difference\n(Mg ha\u207b\u00b9 yr\u207b\u00b9)",
+                                          'm_nfix'        = 'N Fixation Difference\n(g N m\u207b\u00b2 yr\u207b\u00b9)',
+                                          'hist_bio12'    = 'Mean Annual Precipitation\n(mm yr\u207b\u00b9)',
+                                          's_annet'       = 'ET Difference\n(cm H\u2082O yr\u207b\u00b9)'))
+
+# CCG-NTILL
+ccg_ntill_y_map     = cluster_map(ccg_ntill_k_YIELD$kmeans_dt, 'ssp126')
+ccg_ntill_y_density = SHAP_y_density(copy(ccg_ntill_k_YIELD$kmeans_dt), 'ssp126', 
+                                     c('s_cr_grain', 's_SOC', 's_N_leach', 's_cc_biomass'),
+                                     c('s_cr_grain'    = "Grain Yield Difference\n(Mg ha\u207b\u00b9 yr\u207b\u00b9)",
+                                       's_SOC'         = "Soil Organic Carbon Difference\n(Mg CO\u2082-eq ha\u207b\u00b9 yr\u207b\u00b9)",
+                                       's_N_leach'     = "Leached Nitrogen Difference\n(g N m\u207b\u00b2 yr\u207b\u00b9)",
+                                       's_cc_biomass'  = "Cover Crop Biomass\n(Mg DM ha\u207b\u00b9 yr\u207b\u00b9)"))
+Yield_main_features = ccl_ntill_y_density + ccg_ntill_y_density + ccl_ntill_y_map + ccg_ntill_y_map +
+  plot_layout(ncol = 2, nrow = 2, guides = 'collect') &
+  theme(legend.position = 'none')
+Yield_main_features = Yield_main_features + plot_annotation(tag_levels = list(c('a', 'c', 'b', 'd'))) &
+  theme(plot.tag = element_text(size = 7))
+# add legend manually
+ggsave(paste0(fig.path,'/ext-data/yield-main-features-all.tiff'), Yield_main_features, units = 'mm', width = 180, height = 160, device='tiff', dpi=300)
+# Fig. 4 SC Feature Rank, other practices
+load(paste(data.path, "res-yield_SHAP.Rdata", sep = '/'))
+load(paste(data.path, "ntill-res-yield_SHAP.Rdata", sep = '/'))
+load(paste(data.path, "ccl-res-yield_SHAP.Rdata", sep = '/'))
+load(paste(data.path, "ccg-res-yield_SHAP.Rdata", sep = '/'))
+
+# RES
+res_y_f_names    = c(parse(text = 'Delta~Soil~Decomposition~Multiplier'), 'Ammonium Fertilizer Fraction',parse(text = 'Delta~N~Fixation'),
+                     parse(text = 'Delta~Surface~Decomposition~Multiplier'),'MAP','MAT',
+                     'Sand Fraction', 'Nitrate Fertilizer Fraction', 'Urea Fertilizer Fraction',
+                     'N Inputs', 'Residue Return Fraction', parse(text = 'Delta~N~Leached'),
+                     parse(text='Delta~Gross~Nitrification'),parse(text = 'Delta~ET'), parse(text = 'Delta~Soil~Organic~Carbon')) # reverse order
+res_y_f_types    = c('State', 'State', 'State', 'State', 'Management', 'Management', 'Management',
+                     'Management', 'Site', 'Climate', 'Climate', 'State', 'State', 'Management', 'State') # actual order
+res_y_feature    = feature_yield_p(res_y_f_names, res_YIELD$gl_gg$data$feature,
+                                   res_YIELD$gl_gg$data$value, colors, res_y_f_types)
+# NTILL-RES
+ntill_res_y_f_names    = c('Initial SOC Stock', parse(text = 'Delta~Surface~Decomposition~Multiplier'),'Ammonium Fertilizer Fraction',
+                           parse(text = 'Delta~Soil~Decomposition~Multiplier'),'N Inputs','Urea Fertilizer Fraction',
+                           'MAP', 'Residue Return Fraction', 'Nitrate Fertilizer Fraction',
+                           parse(text = 'Delta~Soil~Organic~Carbon'), 'MAT', 'Sand Fraction',
+                           parse(text='Delta~ET'),parse(text = 'Delta~Gross~Nitrification'), parse(text = 'Delta~N~Leached')) # reverse order
+ntill_res_y_f_types    = c('State', 'State', 'State', 'Site', 'Climate', 'State', 'Management',
+                           'Management', 'Climate', 'Management', 'Management', 'State', 'Management', 'State', 'Site') # actual order
+ntill_res_y_feature    = feature_yield_p(ntill_res_y_f_names, ntill_res_YIELD$gl_gg$data$feature,
+                                         ntill_res_YIELD$gl_gg$data$value, colors, ntill_res_y_f_types)
+# CCL-RES
+ccl_res_y_f_names    = c('Urea Fertilizer Fraction', 'MAT','Nitrate Fertilizer Fraction',
+                         parse(text = 'Delta~Surface~Decomposition~Multiplier'),parse(text = 'Delta~Gross~Nitrification'), 'Cover Crop Biomass',
+                         'Clay Fraction', 'Sand Fraction', 'Soil Bulk Density',
+                         'N Inputs', 'MAP', parse(text = 'Delta~N~Leached'),
+                         parse(text='Delta~ET'),parse(text = 'Delta~Soil~Organic~Carbon'), parse(text = 'Delta~N~Fixation')) # reverse order
+ccl_res_y_f_types    = c('State', 'State', 'State', 'State', 'Climate', 'Management', 'Site',
+                         'Site', 'Site', 'State', 'State', 'State', 'Management', 'Climate', 'Management') # actual order
+ccl_res_y_feature    = feature_yield_p(ccl_res_y_f_names, ccl_res_YIELD$gl_gg$data$feature,
+                                       ccl_res_YIELD$gl_gg$data$value, colors, ccl_res_y_f_types)
+ccl_res_y_feature    = ccl_res_y_feature + coord_cartesian(xlim =c(0, 12.5))
+# CCG-RES
+ccg_res_y_f_names    = c(parse(text = 'Delta~Surface~Decomposition~Multiplier'), 'Soil pH',parse(text = 'Delta~Gross~Nitrification'),
+                         'MAT','N Inputs', parse(text = 'Delta~Soil~Organic~Carbon'),
+                         parse(text = 'Delta~Soil~Decomposition~Multiplier'), 'Residue Return Fraction', 'Clay Fraction',
+                         'Soil Bulk Density', 'Sand Fraction', parse(text = 'Delta~N~Leached'),
+                         parse(text='Delta~ET'),'MAP', 'Cover Crop Biomass') # reverse order
+ccg_res_y_f_types    = c('State', 'Climate', 'State', 'State', 'Site', 'Site', 'Site',
+                         'Management', 'State', 'State', 'Management', 'Climate', 'State', 'Site', 'State') # actual order
+ccg_res_y_feature    = feature_yield_p(ccg_res_y_f_names, ccg_res_YIELD$gl_gg$data$feature,
+                                       ccg_res_YIELD$gl_gg$data$value, colors, ccg_res_y_f_types)
+# COMBINE
+Yield_other_feature   = res_y_feature + ntill_res_y_feature + ccl_res_y_feature + ccg_res_y_feature +
+  plot_layout(ncol = 2, nrow = 2, guides = 'collect') &
+  theme(legend.position = 'bottom')
+Yield_other_feature = Yield_other_feature + plot_annotation(tag_levels = list(c('a', 'c', 'b', 'd'))) &
+  theme(plot.tag = element_text(size = 7))
+ggsave(paste0(fig.path,'/ext-data/Yield-SHAP-features-other.pdf'), Yield_other_feature, units = 'mm', width = 180, height = 185, device='pdf', dpi=300)
 #-------------------------------------------------------------------------------
 # OLD - SAVE FOR NOW
-#-------------------------------------------------------------------------------
-
 #-------------------------------------------------------------------------------
 # Figure(s) X (Global & Regional Cumulative Totals)
 #-------------------------------------------------------------------------------
