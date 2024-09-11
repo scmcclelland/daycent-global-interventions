@@ -6,7 +6,7 @@ Files starting with "figures_" are figure files.
 
 "plot_discrete_color_bar" and "results_functions" are scripts with functions for analyses and figures.
 
-Please find refer to data files at the Zenodo repository.
+Please refer to data files at the Zenodo repository.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13327482.svg)](https://doi.org/10.5281/zenodo.13327482)
 
